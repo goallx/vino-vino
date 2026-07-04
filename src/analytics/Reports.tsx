@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { motion, type Variants } from 'framer-motion';
-import { loadOrders, subscribe } from '../lib/orderBus';
+import { loadOrders, loadOrdersRange, subscribe } from '../lib/orderBus';
+import { isSupabaseEnabled } from '../lib/supabase';
+import type { KitchenOrder } from '../types';
 import { computeMetrics, ordersInRange, startOfDay } from './metrics';
 import { seedReportsDemo } from './sampleReports';
 import { shekels } from '../lib/money';
@@ -78,6 +80,8 @@ export function Reports({ onSignOut }: ReportsProps = {}) {
   const [range, setRange] = useState<Range>(todayRange);
   const [dateValue, setDateValue] = useState('');
 
+  const [pastOrders, setPastOrders] = useState<KitchenOrder[] | null>(null);
+
   useEffect(() => {
     if (import.meta.env.DEV && new URLSearchParams(window.location.search).has('demo')) {
       seedReportsDemo();
@@ -86,7 +90,23 @@ export function Reports({ onSignOut }: ReportsProps = {}) {
     return subscribe(setOrders);
   }, []);
 
-  const m = computeMetrics(ordersInRange(orders, range.from, range.to));
+  // Ranges entirely in the past can fall outside the bus's rolling window —
+  // fetch them straight from the DB. Ranges including today stay live off the bus.
+  useEffect(() => {
+    if (!isSupabaseEnabled || range.to > startOfDay(Date.now())) {
+      setPastOrders(null);
+      return;
+    }
+    let active = true;
+    void loadOrdersRange(range.from, range.to).then((list) => {
+      if (active) setPastOrders(list);
+    });
+    return () => {
+      active = false;
+    };
+  }, [range]);
+
+  const m = computeMetrics(ordersInRange(pastOrders ?? orders, range.from, range.to));
   const peakHour = Math.max(1, ...m.byHour.map((h) => h.count));
   const topMax = Math.max(1, ...m.topItems.map((t) => t.qty));
 

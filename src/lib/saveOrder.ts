@@ -21,25 +21,33 @@ export async function saveOrder(state: OrderState, orderNumber: number): Promise
     console.info('[vino] order saved locally (no Supabase configured)', { orderNumber, state, subtotal, discount, total });
     return { ok: true, persisted: 'local', orderNumber };
   }
+  const db = supabase;
 
-  const { data: order, error } = await supabase
-    .from('orders')
-    .insert({
-      type: state.type,
-      status: 'new',
-      channel: 'phone',
-      customer_name: state.name || null,
-      customer_phone: state.phone || null,
-      address: state.type === 'delivery' ? state.address || null : null,
-      payment_status: state.payment,
-      payment_method: state.paymentMethod,
-      subtotal,
-      discount,
-      total,
-      note: state.note || null,
-    })
-    .select('id, daily_number')
-    .single();
+  const row = {
+    type: state.type,
+    status: 'new',
+    channel: 'phone',
+    customer_name: state.name || null,
+    customer_phone: state.phone || null,
+    address: state.type === 'delivery' ? state.address || null : null,
+    payment_status: state.payment,
+    payment_method: state.paymentMethod,
+    subtotal,
+    discount,
+    total,
+    note: state.note || null,
+    // KitchenOrder snapshot — the kitchen board and reports render these
+    // directly off the row, pushed whole over realtime.
+    lines: state.lines,
+    discounts: state.discounts.length ? state.discounts : null,
+  };
+
+  const insert = () => db.from('orders').insert(row).select('id, daily_number').single();
+  let { data: order, error } = await insert();
+  if (error?.code === '23505') {
+    // two devices raced for the same daily_number — the trigger recomputes on retry
+    ({ data: order, error } = await insert());
+  }
 
   if (error || !order) {
     console.error('[vino] failed to save order', error);

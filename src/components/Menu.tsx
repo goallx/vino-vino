@@ -1,10 +1,10 @@
-import { useMemo, useState, useSyncExternalStore } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { AnimatePresence, motion, type Variants } from 'framer-motion';
 import type { Bundle, Product, Variant } from '../types';
 import { categories } from '../data/menu';
 import { activeProducts, menuVersion, productsById, subscribeMenu } from '../lib/menuStore';
 import { shekels } from '../lib/money';
-import { bundleGross, bundleSaving, listActiveBundles } from '../lib/bundles';
+import { bundleGross, bundleSaving, bundlesVersion, listActiveBundles, subscribeBundles } from '../lib/bundles';
 import { DishMedia } from './DishMedia';
 
 interface MenuProps {
@@ -22,8 +22,9 @@ const card: Variants = {
 };
 
 export function Menu({ onAddProduct, onOpenBuilder, onApplyBundle }: MenuProps) {
-  // Bundles are owner-managed in /deals; load once at mount (a refresh picks up edits).
-  const bundles = useMemo(() => listActiveBundles(), []);
+  // Bundles are owner-managed in /deals; re-read when the store changes.
+  useSyncExternalStore(subscribeBundles, bundlesVersion);
+  const bundles = listActiveBundles();
   const cats = bundles.length > 0 ? [{ id: DEALS_CAT, name: 'מבצעים' }, ...categories] : categories;
 
   // The deals tab leads the list for prominence, but pizzas stay the default view.

@@ -4,6 +4,7 @@ import { Menu } from './components/Menu';
 import { Wordmark } from './components/Wordmark';
 import { Ticket } from './components/Ticket';
 import { PizzaBuilder } from './components/PizzaBuilder';
+import { SettingsModal } from './components/SettingsModal';
 import { useOrder, clearDraft } from './state/order';
 import type { Bundle, CartLine, PastOrder, Product, Variant } from './types';
 import { computeUnitPrice, newLineId, wholePart } from './lib/cart';
@@ -38,6 +39,7 @@ export default function App({ username, onSignOut }: AppProps = {}) {
   const [dismissedMatch, setDismissedMatch] = useState(false);
   const [orderNumber, setOrderNumber] = useState(() => Number(localStorage.getItem('vino:next-number') ?? '1'));
   const [toast, setToast] = useState<Toast | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const undoRef = useRef<UndoState | null>(null);
 
   // Exact phone → reorder panel
@@ -155,7 +157,7 @@ export default function App({ username, onSignOut }: AppProps = {}) {
     }
     publishOrder({
       id: `o_${Date.now()}_${orderNumber}`,
-      number: orderNumber,
+      number: result.orderNumber,
       type: state.type,
       payment: state.payment,
       createdAt: Date.now(),
@@ -175,7 +177,7 @@ export default function App({ username, onSignOut }: AppProps = {}) {
     clearDraft();
     dispatch({ kind: 'reset' });
     setDismissedMatch(false);
-    flash(`הזמנה #${String(orderNumber).padStart(2, '0')} נשלחה למטבח`);
+    flash(`הזמנה #${String(result.orderNumber).padStart(2, '0')} נשלחה למטבח`);
   }
 
   return (
@@ -183,15 +185,12 @@ export default function App({ username, onSignOut }: AppProps = {}) {
       <header className="topbar">
         <Wordmark className="brand" />
         <span className="topbar__sub">קבלת הזמנות</span>
-        <a className="topbar__link topbar__link--push" href="/deals" target="_blank" rel="noreferrer">תפריט ומבצעים ↗</a>
-        <a className="topbar__link" href="/orders" target="_blank" rel="noreferrer">הזמנות ↗</a>
-        <a className="topbar__link" href="/reports" target="_blank" rel="noreferrer">דוח יומי ↗</a>
-        <a className="topbar__link" href="/kitchen" target="_blank" rel="noreferrer">מסך מטבח ↗</a>
-        {onSignOut && (
-          <button className="topbar__link topbar__signout" onClick={onSignOut}>
-            {username ? `${username} · יציאה` : 'יציאה'}
-          </button>
-        )}
+        <a className="topbar__link topbar__link--push" href="/kitchen" target="_blank" rel="noreferrer">
+          מסך מטבח ↗
+        </a>
+        <button className="topbar__link" onClick={() => setSettingsOpen(true)}>
+          ⚙ הגדרות
+        </button>
       </header>
 
       <main className="stage">
@@ -219,6 +218,17 @@ export default function App({ username, onSignOut }: AppProps = {}) {
           canSend={state.lines.length > 0}
         />
       </main>
+
+      <AnimatePresence>
+        {settingsOpen && (
+          <SettingsModal
+            key="settings"
+            username={username}
+            onSignOut={onSignOut}
+            onClose={() => setSettingsOpen(false)}
+          />
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {builder && (

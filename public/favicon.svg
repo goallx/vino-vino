@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Vino Vino app icon: the PizzaArt pie on brand red.
+       Full-bleed background + art inside the 80% safe zone → same file
+       works for `any` and `maskable` purposes. -->
+  <rect width="512" height="512" fill="#e3332f"/>
+  <circle cx="256" cy="256" r="202" fill="#c9241c"/>
+  <circle cx="256" cy="256" r="192" fill="#f4b63b"/>
+  <circle cx="256" cy="256" r="158" fill="#f8e7bd"/>
+  <!-- slice cuts -->
+  <g stroke="#eccf96" stroke-width="7">
+    <line x1="256" y1="98" x2="256" y2="414"/>
+    <line x1="98" y1="256" x2="414" y2="256"/>
+    <line x1="144" y1="144" x2="368" y2="368"/>
+    <line x1="368" y1="144" x2="144" y2="368"/>
+  </g>
+  <circle cx="256" cy="256" r="158" fill="none" stroke="#f4b63b" stroke-width="10"/>
+  <!-- pepperoni -->
+  <g fill="#d92a23" stroke="#a81b14" stroke-width="6">
+    <circle cx="216" cy="188" r="27"/>
+    <circle cx="318" cy="222" r="27"/>
+    <circle cx="188" cy="292" r="27"/>
+    <circle cx="286" cy="330" r="27"/>
+  </g>
+  <!-- basil -->
+  <g fill="#52a93e">
+    <ellipse cx="298" cy="160" rx="20" ry="12" transform="rotate(-28 298 160)"/>
+    <ellipse cx="150" cy="232" rx="20" ry="12" transform="rotate(22 150 232)"/>
+    <ellipse cx="352" cy="288" rx="20" ry="12" transform="rotate(-14 352 288)"/>
+    <ellipse cx="232" cy="368" rx="20" ry="12" transform="rotate(30 232 368)"/>
+  </g>
+</svg>

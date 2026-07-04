@@ -1,12 +1,51 @@
 import type { AppliedBundle, Bundle, CartLine, Money } from '../types';
 import { productsById } from './menuStore';
 import { computeUnitPrice, newLineId, wholePart } from './cart';
+import { supabase, isSupabaseEnabled } from './supabase';
 
-// Owner-managed combo deals. localStorage stand-in for the planned Supabase
-// `deals` table — swapping the backend should touch only this file
-// (same pattern as customers.ts / orderBus.ts).
+// Owner-managed combo deals.
+//
+// Supabase mode: the `bundles` table is the source of truth — fetched into the
+// localStorage cache on load, refetched on realtime changes, written through
+// on save/remove. Reads stay synchronous off the cache.
+// Local mode (no env vars): localStorage seeded with two example deals.
 
 const KEY = 'vino:bundles';
+
+let version = 0;
+const listeners = new Set<() => void>();
+function notify() {
+  version += 1;
+  listeners.forEach((fn) => fn());
+}
+
+/** Subscribe/snapshot pair for React's useSyncExternalStore. */
+export function subscribeBundles(fn: () => void): () => void {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+export function bundlesVersion(): number {
+  return version;
+}
+
+async function fetchBundles(): Promise<void> {
+  if (!supabase) return;
+  const { data, error } = await supabase.from('bundles').select('id, name, items, price, active');
+  if (error || !data) {
+    if (error) console.error('[vino] failed to fetch bundles', error);
+    return; // keep serving cache/seed
+  }
+  persist(data as Bundle[]);
+  notify();
+}
+
+if (isSupabaseEnabled && supabase) {
+  void fetchBundles();
+  supabase
+    .channel('bundles-feed')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'bundles' }, () => void fetchBundles())
+    .subscribe();
+}
 
 /** First-run seed so /deals and the order screen aren't empty on a fresh install. */
 function seed(): Bundle[] {
@@ -41,12 +80,32 @@ export function saveBundle(bundle: Bundle): Bundle[] {
   const list = loadBundles().filter((b) => b.id !== bundle.id);
   list.push(bundle);
   persist(list);
+  notify();
+  if (supabase) {
+    const { id, name, items, price, active } = bundle;
+    void supabase
+      .from('bundles')
+      .upsert({ id, name, items, price, active })
+      .then(({ error }) => {
+        if (error) console.error('[vino] failed to save bundle', error);
+      });
+  }
   return list;
 }
 
 export function removeBundle(id: string): Bundle[] {
   const list = loadBundles().filter((b) => b.id !== id);
   persist(list);
+  notify();
+  if (supabase) {
+    void supabase
+      .from('bundles')
+      .delete()
+      .eq('id', id)
+      .then(({ error }) => {
+        if (error) console.error('[vino] failed to remove bundle', error);
+      });
+  }
   return list;
 }
 

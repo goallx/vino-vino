@@ -1054,3 +1054,64 @@ input, select { font-family: inherit; }
   .dactive { flex-direction: column; align-items: stretch; gap: 8px; }
   .dactive .seg { width: 100%; }
 }
+
+/* ============================================================
+   SETTINGS — the manager's chit: admin pages, screens and
+   account, torn off the same pad as the ticket
+   ============================================================ */
+.settings {
+  width: min(440px, 94vw); max-height: 92vh; overflow-y: auto;
+  background: var(--chit); border-radius: var(--r-lg); box-shadow: var(--shadow-2);
+  display: flex; flex-direction: column;
+}
+.settings__head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 20px 12px;
+  background: var(--vino-deep); color: #f6e9d8;
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+}
+.settings__title { margin: 0; font-family: var(--display); font-weight: 800; font-size: 24px; color: #fff5ec; }
+.settings__user { margin-inline-start: auto; font-size: 13px; font-weight: 600; color: #d8b9a6; }
+.settings__x {
+  width: 38px; height: 38px; border-radius: 999px; flex: none;
+  font-size: 15px; color: #f0c9a0; border: 1px solid rgba(240,201,160,.4);
+}
+.settings__x:hover { background: rgba(240,201,160,.12); }
+.settings__x:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+/* torn edge: chit paper with holes punched over the dark head */
+.settings__perf {
+  height: 9px; flex: none;
+  background:
+    radial-gradient(circle at 7px 9px, transparent 5px, var(--chit) 5.5px) repeat-x
+    var(--vino-deep);
+  background-size: 15px 9px;
+}
+
+.settings__body { padding: 6px 16px 18px; display: flex; flex-direction: column; }
+.sgroup { display: flex; flex-direction: column; gap: 4px; }
+.sgroup__label {
+  display: flex; align-items: center; gap: 10px;
+  margin: 14px 4px 6px; font-size: 11.5px; font-weight: 800;
+  letter-spacing: 2px; color: var(--ink-soft);
+}
+.sgroup__label::after { content: ''; flex: 1; border-top: 1px dashed var(--line-strong); }
+
+.srow {
+  display: flex; align-items: center; gap: 12px; min-height: 58px;
+  padding: 8px 10px; border-radius: var(--r-md);
+  border: 1.5px solid transparent; text-decoration: none; color: var(--ink);
+  text-align: start;
+}
+.srow:hover { background: #fff; border-color: var(--line-strong); }
+.srow:focus-visible { outline: 2px solid var(--vino); outline-offset: 2px; }
+.srow__icon {
+  width: 42px; height: 42px; border-radius: 12px; flex: none;
+  display: grid; place-items: center; font-size: 20px;
+  background: var(--paper-2); border: 1px solid var(--line);
+}
+.srow__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.srow__name { font-weight: 800; font-size: 16px; }
+.srow__desc { font-size: 12.5px; color: var(--ink-soft); }
+.srow__go { margin-inline-start: auto; font-size: 14px; font-weight: 700; color: var(--ink-soft); }
+.srow--signout .srow__name { color: var(--remove); }
+.srow--signout:hover { border-color: var(--remove); }

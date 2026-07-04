@@ -1,5 +1,6 @@
 import type { CartLine, PastOrder } from '../types';
 import { sampleCustomers } from '../data/sampleHistory';
+import { supabase, isSupabaseEnabled } from './supabase';
 
 export interface StoredCustomer {
   phone: string; // normalized digits
@@ -10,8 +11,47 @@ export interface StoredCustomer {
   past: PastOrder[];
 }
 
+// Customer memory for phone/address autocomplete and the reorder panel.
+//
+// Supabase mode: the `customers` table is the source of truth — pulled whole
+// into the localStorage cache on load (restaurant scale: small), written
+// through on every sent order. Lookups stay synchronous off the cache.
+// Local mode (no env vars): localStorage seeded with sample history for dev.
+
 const KEY = 'vino:customers';
 const digits = (s: string) => s.replace(/\D/g, '');
+
+interface CustomerRow {
+  phone: string;
+  name: string | null;
+  address: string | null;
+  order_count: number;
+  last_order_at: string | null;
+  past: PastOrder[] | null;
+}
+
+async function fetchCustomers(): Promise<void> {
+  if (!supabase) return;
+  const { data, error } = await supabase.from('customers').select('*');
+  if (error || !data) {
+    if (error) console.error('[vino] failed to fetch customers', error);
+    return; // keep serving the cache
+  }
+  const map: Record<string, StoredCustomer> = {};
+  for (const row of data as CustomerRow[]) {
+    map[row.phone] = {
+      phone: row.phone,
+      name: row.name ?? undefined,
+      address: row.address ?? undefined,
+      orderCount: row.order_count,
+      lastOrderAt: row.last_order_at ? Date.parse(row.last_order_at) : 0,
+      past: row.past ?? [],
+    };
+  }
+  save(map);
+}
+
+if (isSupabaseEnabled) void fetchCustomers();
 
 /** First-run seed from the bundled sample customers so reorder/autocomplete have data. */
 function seed(): Record<string, StoredCustomer> {
@@ -34,8 +74,10 @@ export function loadCustomers(): Record<string, StoredCustomer> {
     const raw = localStorage.getItem(KEY);
     if (raw) return JSON.parse(raw) as Record<string, StoredCustomer>;
   } catch {
-    /* fall through to seed */
+    /* fall through */
   }
+  // Real customers come from the DB; the sample seed is a dev/offline nicety.
+  if (isSupabaseEnabled) return {};
   const seeded = seed();
   try {
     localStorage.setItem(KEY, JSON.stringify(seeded));
@@ -115,7 +157,7 @@ export function recordOrder(opts: { phone: string; name?: string; address?: stri
     summary: opts.lines.map((l) => `${l.qty}× ${l.name}`).join(', '),
     lines: opts.lines,
   };
-  map[d] = {
+  const updated: StoredCustomer = {
     phone: d,
     name: opts.name || existing?.name,
     address: opts.address || existing?.address,
@@ -123,5 +165,21 @@ export function recordOrder(opts: { phone: string; name?: string; address?: stri
     lastOrderAt: Date.now(),
     past: [entry, ...(existing?.past ?? [])].slice(0, 6),
   };
+  map[d] = updated;
   save(map);
+  if (supabase) {
+    void supabase
+      .from('customers')
+      .upsert({
+        phone: updated.phone,
+        name: updated.name ?? null,
+        address: updated.address ?? null,
+        order_count: updated.orderCount,
+        last_order_at: new Date(updated.lastOrderAt).toISOString(),
+        past: updated.past,
+      })
+      .then(({ error }) => {
+        if (error) console.error('[vino] failed to save customer', error);
+      });
+  }
 }

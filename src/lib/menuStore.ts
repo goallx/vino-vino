@@ -1,9 +1,15 @@
 import type { Product } from '../types';
 import { products as seedProducts } from '../data/menu';
+import { supabase, isSupabaseEnabled } from './supabase';
 
-// Owner-managed menu. localStorage stand-in for the planned Supabase
-// `products` table — swapping the backend should touch only this file
-// (same pattern as bundles.ts / customers.ts / orderBus.ts).
+// Owner-managed menu.
+//
+// Supabase mode: the `products` table is the source of truth — fetched into
+// the localStorage cache on load, refetched on realtime changes (cross-device
+// edits), written through on save/remove. Reads stay synchronous off the
+// cache so consumers render instantly and survive a network blip.
+//
+// Local mode (no env vars): localStorage seeded from the bundled menu.
 //
 // Consumers import the live `products` / `productsById` / `pizzaProducts`
 // bindings (kept in sync in place after every mutation), so switching a file
@@ -34,6 +40,70 @@ function persist(list: Product[]) {
   }
 }
 
+/* ---------------- Supabase row mapping ---------------- */
+
+interface ProductRow {
+  id: string;
+  category_id: string;
+  name: string;
+  description: string | null;
+  base_price: number;
+  is_pizza: boolean;
+  split_capable: boolean;
+  included_toppings: number | null;
+  variants: Product['variants'] | null;
+  art: string[] | null;
+  active: boolean;
+  sort: number;
+}
+
+function rowToProduct(row: ProductRow): Product {
+  return {
+    id: row.id,
+    categoryId: row.category_id,
+    name: row.name,
+    description: row.description ?? undefined,
+    basePrice: row.base_price,
+    isPizza: row.is_pizza || undefined,
+    splitCapable: row.split_capable || undefined,
+    includedToppings: row.included_toppings ?? undefined,
+    variants: row.variants ?? undefined,
+    art: row.art ?? undefined,
+    active: row.active,
+  };
+}
+
+function productToRow(p: Product, sort: number): ProductRow {
+  return {
+    id: p.id,
+    category_id: p.categoryId,
+    name: p.name,
+    description: p.description ?? null,
+    base_price: p.basePrice,
+    is_pizza: !!p.isPizza,
+    split_capable: !!p.splitCapable,
+    included_toppings: p.includedToppings ?? null,
+    variants: p.variants ?? null,
+    art: p.art ?? null,
+    active: p.active !== false,
+    sort,
+  };
+}
+
+async function fetchMenu(): Promise<void> {
+  if (!supabase) return;
+  const { data, error } = await supabase.from('products').select('*').order('sort');
+  if (error || !data || data.length === 0) {
+    if (error) console.error('[vino] failed to fetch menu', error);
+    return; // keep serving cache/seed
+  }
+  const list = (data as ProductRow[]).map(rowToProduct);
+  persist(list);
+  refresh(list);
+}
+
+/* ---------------- live bindings ---------------- */
+
 /** Live bindings — same shapes data/menu exported, refreshed in place. */
 export const products: Product[] = [];
 export const productsById: Record<string, Product> = {};
@@ -55,8 +125,15 @@ function refresh(list: Product[]) {
 
 refresh(load());
 
-// Another tab (e.g. the /deals admin) edited the menu — pick it up live.
-if (typeof window !== 'undefined') {
+if (isSupabaseEnabled && supabase) {
+  void fetchMenu();
+  // Another device edited the menu — pick it up live.
+  supabase
+    .channel('products-feed')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => void fetchMenu())
+    .subscribe();
+} else if (typeof window !== 'undefined') {
+  // Another tab (e.g. the /deals admin) edited the menu — pick it up live.
   window.addEventListener('storage', (e) => {
     if (e.key === KEY) refresh(load());
   });
@@ -84,12 +161,30 @@ export function saveProduct(product: Product): void {
   else list.push(product);
   persist(list);
   refresh(list);
+  if (supabase) {
+    const sort = at >= 0 ? at : list.length - 1;
+    void supabase
+      .from('products')
+      .upsert(productToRow(product, sort))
+      .then(({ error }) => {
+        if (error) console.error('[vino] failed to save product', error);
+      });
+  }
 }
 
 export function removeProduct(id: string): void {
   const list = products.filter((p) => p.id !== id);
   persist(list);
   refresh(list);
+  if (supabase) {
+    void supabase
+      .from('products')
+      .delete()
+      .eq('id', id)
+      .then(({ error }) => {
+        if (error) console.error('[vino] failed to remove product', error);
+      });
+  }
 }
 
 export function newProductId(): string {

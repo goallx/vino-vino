@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { Bundle, Product } from '../types';
 import { categories } from '../data/menu';
 import { products, productsById } from '../lib/menuStore';
 import { shekels } from '../lib/money';
 import { Wordmark } from '../components/Wordmark';
-import { bundleGross, bundleSaving, loadBundles, newBundleId, removeBundle, saveBundle } from '../lib/bundles';
+import { bundleGross, bundleSaving, loadBundles, newBundleId, removeBundle, saveBundle, subscribeBundles } from '../lib/bundles';
 import { blankProduct, MenuAdmin } from './MenuAdmin';
 
 interface DealsProps {
@@ -24,6 +24,9 @@ export function Deals({ onSignOut }: DealsProps) {
   const [bundles, setBundles] = useState<Bundle[]>(() => loadBundles());
   const [editing, setEditing] = useState<Bundle | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
+  // The store may refresh from the DB after mount (or another device edits).
+  useEffect(() => subscribeBundles(() => setBundles(loadBundles())), []);
 
   function persist(next: Bundle[]) {
     setBundles([...next].sort((a, b) => Number(b.active) - Number(a.active)));
