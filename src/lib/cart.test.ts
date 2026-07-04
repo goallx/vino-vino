@@ -1,8 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { beforeAll, describe, it, expect } from 'vitest';
 import type { CartLine, LinePart, ToppingSel } from '../types';
 import { computeUnitPrice, lineSummary, wholePart, newLineId, lineTotal, linesSubtotal, discountsTotal, orderTotals } from './cart';
 import type { AppliedBundle } from '../types';
-import { productsById } from '../data/menu';
+import { productsById } from '../test/fixtures/catalog';
+import { seedCatalog } from '../test/fixtures/seed';
+
+beforeAll(seedCatalog);
 
 function add(id: string, name: string, price: number): ToppingSel {
   return { toppingId: id, name, action: 'add', price };

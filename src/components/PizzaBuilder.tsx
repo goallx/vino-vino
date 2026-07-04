@@ -1,8 +1,7 @@
 import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import type { CartLine, LinePart, Product, Target, ToppingSel } from '../types';
-import { toppings, toppingsById } from '../data/menu';
-import { pizzaProducts, productsById } from '../lib/menuStore';
+import { pizzaProducts, productsById, toppings, toppingsById } from '../lib/menuStore';
 import { computeUnitPrice, newLineId } from '../lib/cart';
 import { shekels } from '../lib/money';
 import { PizzaArt } from './PizzaArt';
@@ -37,10 +36,10 @@ function halfFromPart(part: LinePart | undefined, fallbackBase: string): HalfSta
 function partToppings(base: string, selected: string[]): ToppingSel[] {
   const defaults = artOf(base);
   const adds = selected
-    .filter((id) => !defaults.includes(id))
+    .filter((id) => !defaults.includes(id) && toppingsById[id])
     .map((id) => ({ toppingId: id, name: toppingsById[id].name, action: 'add' as const, price: toppingsById[id].price }));
   const removed = defaults
-    .filter((id) => !selected.includes(id))
+    .filter((id) => !selected.includes(id) && toppingsById[id])
     .map((id) => ({ toppingId: id, name: toppingsById[id].name, action: 'remove' as const, price: 0 }));
   return [...adds, ...removed];
 }

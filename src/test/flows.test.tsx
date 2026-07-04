@@ -3,6 +3,7 @@ import { render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { UserEvent } from '@testing-library/user-event';
 import App from '../App';
+import { seedCatalog } from './fixtures/seed';
 
 const ticket = () => screen.getByRole('complementary', { name: 'הזמנה נוכחית' });
 const total = () => within(ticket()).getByTestId('ticket-total');
@@ -18,7 +19,7 @@ function openCategory(user: UserEvent, name: string) {
   return user.click(screen.getByRole('button', { name }));
 }
 
-beforeEach(() => localStorage.clear());
+beforeEach(seedCatalog);
 
 describe('add a simple item', () => {
   it('adds a drink to the ticket and updates the total', async () => {

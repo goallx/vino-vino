@@ -1,5 +1,4 @@
 import type { CartLine, PastOrder } from '../types';
-import { sampleCustomers } from '../data/sampleHistory';
 import { supabase, isSupabaseEnabled } from './supabase';
 
 export interface StoredCustomer {
@@ -20,6 +19,8 @@ export interface StoredCustomer {
 
 const KEY = 'vino:customers';
 const digits = (s: string) => s.replace(/\D/g, '');
+// (no bundled sample data — customers accumulate from real orders; tests seed
+// the cache from src/test/fixtures/catalog.ts)
 
 interface CustomerRow {
   phone: string;
@@ -53,22 +54,6 @@ async function fetchCustomers(): Promise<void> {
 
 if (isSupabaseEnabled) void fetchCustomers();
 
-/** First-run seed from the bundled sample customers so reorder/autocomplete have data. */
-function seed(): Record<string, StoredCustomer> {
-  const map: Record<string, StoredCustomer> = {};
-  for (const [phone, rec] of Object.entries(sampleCustomers)) {
-    map[phone] = {
-      phone,
-      name: rec.customer.name,
-      address: rec.customer.address,
-      orderCount: rec.past.length,
-      lastOrderAt: Date.now(),
-      past: rec.past,
-    };
-  }
-  return map;
-}
-
 export function loadCustomers(): Record<string, StoredCustomer> {
   try {
     const raw = localStorage.getItem(KEY);
@@ -76,15 +61,7 @@ export function loadCustomers(): Record<string, StoredCustomer> {
   } catch {
     /* fall through */
   }
-  // Real customers come from the DB; the sample seed is a dev/offline nicety.
-  if (isSupabaseEnabled) return {};
-  const seeded = seed();
-  try {
-    localStorage.setItem(KEY, JSON.stringify(seeded));
-  } catch {
-    /* ignore */
-  }
-  return seeded;
+  return {};
 }
 
 function save(map: Record<string, StoredCustomer>) {

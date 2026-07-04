@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { Bundle, Product } from '../types';
-import { categories } from '../data/menu';
-import { products, productsById } from '../lib/menuStore';
+import { categories, products, productsById } from '../lib/menuStore';
 import { shekels } from '../lib/money';
 import { Wordmark } from '../components/Wordmark';
 import { bundleGross, bundleSaving, loadBundles, newBundleId, removeBundle, saveBundle, subscribeBundles } from '../lib/bundles';

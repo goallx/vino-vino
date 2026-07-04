@@ -1,8 +1,7 @@
 import { useState, useSyncExternalStore } from 'react';
 import { AnimatePresence, motion, type Variants } from 'framer-motion';
 import type { Bundle, Product, Variant } from '../types';
-import { categories } from '../data/menu';
-import { activeProducts, menuVersion, productsById, subscribeMenu } from '../lib/menuStore';
+import { activeProducts, categories, menuVersion, productsById, subscribeMenu } from '../lib/menuStore';
 import { shekels } from '../lib/money';
 import { bundleGross, bundleSaving, bundlesVersion, listActiveBundles, subscribeBundles } from '../lib/bundles';
 import { DishMedia } from './DishMedia';
@@ -27,12 +26,16 @@ export function Menu({ onAddProduct, onOpenBuilder, onApplyBundle }: MenuProps) 
   const bundles = listActiveBundles();
   const cats = bundles.length > 0 ? [{ id: DEALS_CAT, name: 'מבצעים' }, ...categories] : categories;
 
-  // The deals tab leads the list for prominence, but pizzas stay the default view.
-  const [activeCat, setActiveCat] = useState(categories[0].id);
+  // The deals tab leads the list for prominence, but pizzas stay the default
+  // view. The catalog loads async, so the active tab is derived: the picked
+  // one if it still exists, else the first real category once data lands.
+  const [pickedCat, setActiveCat] = useState<string | null>(null);
   const [variantFor, setVariantFor] = useState<Product | null>(null);
 
   // Re-render when the owner edits the menu (another tab's /deals admin).
   useSyncExternalStore(subscribeMenu, menuVersion);
+  const activeCat =
+    pickedCat && cats.some((c) => c.id === pickedCat) ? pickedCat : (categories[0]?.id ?? '');
   const onDeals = activeCat === DEALS_CAT;
   const visible = onDeals ? [] : activeProducts().filter((p) => p.categoryId === activeCat);
 

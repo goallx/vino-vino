@@ -9,7 +9,8 @@ import {
   removeProduct,
   saveProduct,
 } from './menuStore';
-import { products as seedProducts } from '../data/menu';
+import { products as seedProducts } from '../test/fixtures/catalog';
+import { seedCatalog } from '../test/fixtures/seed';
 import type { Product } from '../types';
 
 const calzone: Product = {
@@ -20,17 +21,17 @@ const calzone: Product = {
   active: true,
 };
 
-// module state survives between tests — resync from the cleared storage
-beforeEach(() => {
-  localStorage.clear();
-  reloadMenu();
-});
+// module state survives between tests — resync from the freshly seeded storage
+beforeEach(seedCatalog);
 
 describe('menu store', () => {
-  it('seeds the full Vino Vino menu on first load and persists it', () => {
+  it('serves the cached catalog and is empty without one (DB is the source of truth)', () => {
     expect(products).toHaveLength(seedProducts.length);
     expect(productsById['p_vino'].name).toBe('וינו וינו');
-    expect(JSON.parse(localStorage.getItem('vino:menu')!)).toHaveLength(seedProducts.length);
+    // no bundled fallback: an empty cache means an empty menu until the DB answers
+    localStorage.clear();
+    reloadMenu();
+    expect(products).toHaveLength(0);
   });
 
   it('adds a new owner item and keeps the live lookups in sync', () => {

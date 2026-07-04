@@ -28,16 +28,16 @@ describe('auth (local fallback)', () => {
   it('rejects wrong credentials with an error', async () => {
     const user = userEvent.setup();
     renderAuth();
-    await user.type(screen.getByPlaceholderText('שם משתמש'), 'admin');
+    await user.type(screen.getByPlaceholderText('name@vinovino.app'), 'admin@vinovino.app');
     await user.type(screen.getByPlaceholderText('סיסמה'), 'nope');
     await user.click(screen.getByRole('button', { name: 'התחברות' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/שגויים/);
   });
 
-  it('signs in with the correct credentials and persists the session', async () => {
+  it('signs in with email + password and persists the session', async () => {
     const user = userEvent.setup();
     const view = renderAuth();
-    await user.type(screen.getByPlaceholderText('שם משתמש'), 'admin');
+    await user.type(screen.getByPlaceholderText('name@vinovino.app'), 'Admin@Vinovino.app');
     await user.type(screen.getByPlaceholderText('סיסמה'), 'vinovino');
     await user.click(screen.getByRole('button', { name: 'התחברות' }));
 

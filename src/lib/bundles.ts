@@ -5,10 +5,10 @@ import { supabase, isSupabaseEnabled } from './supabase';
 
 // Owner-managed combo deals.
 //
-// Supabase mode: the `bundles` table is the source of truth — fetched into the
-// localStorage cache on load, refetched on realtime changes, written through
-// on save/remove. Reads stay synchronous off the cache.
-// Local mode (no env vars): localStorage seeded with two example deals.
+// The `bundles` table is the source of truth — fetched into the localStorage
+// cache on load, refetched on realtime changes, written through on
+// save/remove. Reads stay synchronous off the cache. Tests seed the cache
+// from src/test/fixtures/catalog.ts.
 
 const KEY = 'vino:bundles';
 
@@ -47,24 +47,14 @@ if (isSupabaseEnabled && supabase) {
     .subscribe();
 }
 
-/** First-run seed so /deals and the order screen aren't empty on a fresh install. */
-function seed(): Bundle[] {
-  return [
-    { id: 'bnd_two_family', name: 'זוג משפחתיות', items: [{ productId: 'p_vino', qty: 2 }], price: 16000, active: true },
-    { id: 'bnd_pizza_chips', name: 'משפחתית + צ׳יפס גדול', items: [{ productId: 'p_veg', qty: 1 }, { productId: 's_chips', qty: 1 }], price: 10000, active: true },
-  ];
-}
-
 export function loadBundles(): Bundle[] {
   try {
     const raw = localStorage.getItem(KEY);
     if (raw) return JSON.parse(raw) as Bundle[];
   } catch {
-    /* fall through to seed */
+    /* fall through */
   }
-  const seeded = seed();
-  persist(seeded);
-  return seeded;
+  return [];
 }
 
 function persist(list: Bundle[]) {

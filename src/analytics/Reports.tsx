@@ -4,7 +4,6 @@ import { loadOrders, loadOrdersRange, subscribe } from '../lib/orderBus';
 import { isSupabaseEnabled } from '../lib/supabase';
 import type { KitchenOrder } from '../types';
 import { computeMetrics, ordersInRange, startOfDay } from './metrics';
-import { seedReportsDemo } from './sampleReports';
 import { shekels } from '../lib/money';
 import { CountUp } from '../components/CountUp';
 import { Wordmark } from '../components/Wordmark';
@@ -83,9 +82,6 @@ export function Reports({ onSignOut }: ReportsProps = {}) {
   const [pastOrders, setPastOrders] = useState<KitchenOrder[] | null>(null);
 
   useEffect(() => {
-    if (import.meta.env.DEV && new URLSearchParams(window.location.search).has('demo')) {
-      seedReportsDemo();
-    }
     setOrders(loadOrders());
     return subscribe(setOrders);
   }, []);

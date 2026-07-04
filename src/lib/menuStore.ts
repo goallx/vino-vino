@@ -1,40 +1,36 @@
-import type { Product } from '../types';
-import { products as seedProducts } from '../data/menu';
+import type { Category, Product, Topping } from '../types';
 import { supabase, isSupabaseEnabled } from './supabase';
 
-// Owner-managed menu.
+// The catalog store: products, categories and toppings.
 //
-// Supabase mode: the `products` table is the source of truth — fetched into
-// the localStorage cache on load, refetched on realtime changes (cross-device
-// edits), written through on save/remove. Reads stay synchronous off the
-// cache so consumers render instantly and survive a network blip.
+// The database is the single source of truth. Everything is fetched into a
+// localStorage cache on load (so screens render instantly and survive a
+// network blip), refetched on realtime changes (cross-device edits), and
+// written through on save/remove. Reads stay synchronous off the cache.
 //
-// Local mode (no env vars): localStorage seeded from the bundled menu.
-//
-// Consumers import the live `products` / `productsById` / `pizzaProducts`
-// bindings (kept in sync in place after every mutation), so switching a file
-// from '../data/menu' to this store is just the import line.
+// Without env vars (tests, offline dev) the store serves whatever is in the
+// cache — tests seed it from src/test/fixtures/catalog.ts.
 
-const KEY = 'vino:menu';
+const MENU_KEY = 'vino:menu';
+const CATEGORIES_KEY = 'vino:categories';
+const TOPPINGS_KEY = 'vino:toppings';
 
-function load(): Product[] {
+function loadKey<T>(key: string): T[] {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(key);
     if (raw) {
-      const parsed = JSON.parse(raw) as Product[];
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      const parsed = JSON.parse(raw) as T[];
+      if (Array.isArray(parsed)) return parsed;
     }
   } catch {
-    /* fall through to seed */
+    /* fall through */
   }
-  const seeded = seedProducts.map((p) => ({ ...p }));
-  persist(seeded);
-  return seeded;
+  return [];
 }
 
-function persist(list: Product[]) {
+function persist(key: string, list: unknown[]) {
   try {
-    localStorage.setItem(KEY, JSON.stringify(list));
+    localStorage.setItem(key, JSON.stringify(list));
   } catch {
     /* storage full / unavailable — non-fatal */
   }
@@ -90,52 +86,88 @@ function productToRow(p: Product, sort: number): ProductRow {
   };
 }
 
-async function fetchMenu(): Promise<void> {
+async function fetchCatalog(): Promise<void> {
   if (!supabase) return;
-  const { data, error } = await supabase.from('products').select('*').order('sort');
-  if (error || !data || data.length === 0) {
-    if (error) console.error('[vino] failed to fetch menu', error);
-    return; // keep serving cache/seed
+  const [prodRes, catRes, topRes] = await Promise.all([
+    supabase.from('products').select('*').order('sort'),
+    supabase.from('categories').select('id, name').order('sort'),
+    supabase.from('toppings').select('id, name, price').order('price').order('id'),
+  ]);
+  const err = prodRes.error ?? catRes.error ?? topRes.error;
+  if (err) {
+    console.error('[vino] failed to fetch catalog', err);
+    return; // keep serving the cache
   }
-  const list = (data as ProductRow[]).map(rowToProduct);
-  persist(list);
-  refresh(list);
+  if (prodRes.data?.length) {
+    const list = (prodRes.data as ProductRow[]).map(rowToProduct);
+    persist(MENU_KEY, list);
+    refreshProducts(list);
+  }
+  if (catRes.data?.length) {
+    persist(CATEGORIES_KEY, catRes.data);
+    replaceInPlace(categories, catRes.data as Category[]);
+  }
+  if (topRes.data?.length) {
+    persist(TOPPINGS_KEY, topRes.data);
+    replaceInPlace(toppings, topRes.data as Topping[]);
+    for (const k of Object.keys(toppingsById)) delete toppingsById[k];
+    for (const t of toppings) toppingsById[t.id] = t;
+  }
+  bump();
 }
 
 /* ---------------- live bindings ---------------- */
 
-/** Live bindings — same shapes data/menu exported, refreshed in place. */
+/** Live bindings — refreshed in place so consumers keep their references. */
 export const products: Product[] = [];
 export const productsById: Record<string, Product> = {};
 export const pizzaProducts: Product[] = [];
+export const categories: Category[] = [];
+export const toppings: Topping[] = [];
+export const toppingsById: Record<string, Topping> = {};
 
 let version = 0;
 const listeners = new Set<() => void>();
 
-function refresh(list: Product[]) {
-  products.length = 0;
-  products.push(...list);
-  for (const k of Object.keys(productsById)) delete productsById[k];
-  for (const p of list) productsById[p.id] = p;
-  pizzaProducts.length = 0;
-  pizzaProducts.push(...list.filter((p) => p.isPizza && p.active !== false));
+function bump() {
   version += 1;
   listeners.forEach((fn) => fn());
 }
 
-refresh(load());
+function replaceInPlace<T>(target: T[], next: T[]) {
+  target.length = 0;
+  target.push(...next);
+}
+
+function refreshProducts(list: Product[]) {
+  replaceInPlace(products, list);
+  for (const k of Object.keys(productsById)) delete productsById[k];
+  for (const p of list) productsById[p.id] = p;
+  replaceInPlace(pizzaProducts, list.filter((p) => p.isPizza && p.active !== false));
+}
+
+function loadAll() {
+  refreshProducts(loadKey<Product>(MENU_KEY));
+  replaceInPlace(categories, loadKey<Category>(CATEGORIES_KEY));
+  replaceInPlace(toppings, loadKey<Topping>(TOPPINGS_KEY));
+  for (const k of Object.keys(toppingsById)) delete toppingsById[k];
+  for (const t of toppings) toppingsById[t.id] = t;
+  bump();
+}
+
+loadAll();
 
 if (isSupabaseEnabled && supabase) {
-  void fetchMenu();
+  void fetchCatalog();
   // Another device edited the menu — pick it up live.
   supabase
     .channel('products-feed')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => void fetchMenu())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => void fetchCatalog())
     .subscribe();
 } else if (typeof window !== 'undefined') {
   // Another tab (e.g. the /deals admin) edited the menu — pick it up live.
   window.addEventListener('storage', (e) => {
-    if (e.key === KEY) refresh(load());
+    if (e.key === MENU_KEY) loadAll();
   });
 }
 
@@ -159,8 +191,9 @@ export function saveProduct(product: Product): void {
   const at = list.findIndex((p) => p.id === product.id);
   if (at >= 0) list[at] = product;
   else list.push(product);
-  persist(list);
-  refresh(list);
+  persist(MENU_KEY, list);
+  refreshProducts(list);
+  bump();
   if (supabase) {
     const sort = at >= 0 ? at : list.length - 1;
     void supabase
@@ -174,8 +207,9 @@ export function saveProduct(product: Product): void {
 
 export function removeProduct(id: string): void {
   const list = products.filter((p) => p.id !== id);
-  persist(list);
-  refresh(list);
+  persist(MENU_KEY, list);
+  refreshProducts(list);
+  bump();
   if (supabase) {
     void supabase
       .from('products')
@@ -191,7 +225,7 @@ export function newProductId(): string {
   return `c_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
 }
 
-/** Test/dev helper — re-read localStorage (e.g. after clearing it). */
+/** Test/dev helper — re-read the caches (e.g. after (re)seeding localStorage). */
 export function reloadMenu(): void {
-  refresh(load());
+  loadAll();
 }

@@ -1,4 +1,8 @@
 import { describe, it, expect } from 'vitest';
+import { seedCatalog } from '../test/fixtures/seed';
+
+// metric fixtures are built at module scope — the catalog must be live first
+seedCatalog();
 import { dailyMetrics, ordersForDay, orderRevenue, ordersInRange, computeMetrics, startOfDay } from './metrics';
 import type { CartLine, KitchenOrder } from '../types';
 

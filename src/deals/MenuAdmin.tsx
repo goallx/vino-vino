@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { Product } from '../types';
-import { categories } from '../data/menu';
-import { newProductId, products, removeProduct, saveProduct } from '../lib/menuStore';
+import { categories, newProductId, products, removeProduct, saveProduct } from '../lib/menuStore';
 import { shekels } from '../lib/money';
 import { DishMedia } from '../components/DishMedia';
 
@@ -12,7 +11,7 @@ interface MenuAdminProps {
 }
 
 export function blankProduct(): Product {
-  return { id: newProductId(), categoryId: categories[0].id, name: '', basePrice: 0, active: true };
+  return { id: newProductId(), categoryId: categories[0]?.id ?? '', name: '', basePrice: 0, active: true };
 }
 
 /** Pizzas gain the builder defaults; toggling one back strips them. */

@@ -1,7 +1,11 @@
-import type { Category, Product, Topping } from '../types';
+import type { Bundle, Category, Product, Topping } from '../../types';
+import type { StoredCustomer } from '../../lib/customers';
 
-// Seeded from the live Vino Vino menu. Prices in agorot (₪ × 100).
-// This is the local dev seed; the canonical copy lives in supabase/seed.sql.
+// Test fixture: the Vino Vino catalog as it was first seeded from the Wolt
+// page (and pushed to the DB by supabase/seed.sql). The app itself carries no
+// hardcoded catalog — production reads the database; tests run offline against
+// this snapshot via seedCatalog() (./seed.ts). Pure data only in this file —
+// scripts/gen-seed.ts imports it under node.
 
 export const categories: Category[] = [
   { id: 'pizza', name: 'פיצות' },
@@ -72,8 +76,6 @@ export const products: Product[] = [
   { id: 'd_fanta_big', categoryId: 'drinks', name: 'פאנטה 1.5', basePrice: 1500 },
 ];
 
-// Shared topping list for the pizza builder. First `includedToppings` per
-// tray/half are free; the rest are charged at this price.
 export const toppings: Topping[] = [
   { id: 't_mushroom', name: 'פטריות', price: 500 },
   { id: 't_onion', name: 'בצל', price: 500 },
@@ -93,5 +95,66 @@ export const toppings: Topping[] = [
 ];
 
 export const productsById = Object.fromEntries(products.map((p) => [p.id, p]));
-export const toppingsById = Object.fromEntries(toppings.map((t) => [t.id, t]));
-export const pizzaProducts = products.filter((p) => p.isPizza);
+
+export const bundles: Bundle[] = [
+  { id: 'bnd_two_family', name: 'זוג משפחתיות', items: [{ productId: 'p_vino', qty: 2 }], price: 16000, active: true },
+  { id: 'bnd_pizza_chips', name: 'משפחתית + צ׳יפס גדול', items: [{ productId: 'p_veg', qty: 1 }, { productId: 's_chips', qty: 1 }], price: 10000, active: true },
+];
+
+/** Known customers for the phone-autocomplete / reorder flows. */
+export const customers: Record<string, StoredCustomer> = {
+  '0501234567': {
+    phone: '0501234567',
+    name: 'דנה כהן',
+    address: 'הרצל 5, חיפה',
+    orderCount: 2,
+    lastOrderAt: Date.now() - 86_400_000,
+    past: [
+      {
+        id: 'h1',
+        date: 'אתמול',
+        total: 11500,
+        summary: '1× שחיתות משפחתית, 2× קוקה קולה',
+        lines: [
+          { id: 'h1a', productId: 'p_shchitut', name: 'שחיתות', qty: 1, unitPrice: 9500, isSplit: false, parts: [{ target: 'whole', baseProductId: 'p_shchitut', baseName: 'שחיתות', toppings: [] }] },
+          { id: 'h1b', productId: 'd_coke', name: 'קוקה קולה 0.33', qty: 2, unitPrice: 1000, isSplit: false, parts: [] },
+        ],
+      },
+      {
+        id: 'h2',
+        date: '12/06',
+        total: 6400,
+        summary: '1× אישית +פטריות, לחם שום',
+        lines: [
+          { id: 'h2a', productId: 'b_personal', name: 'אישית בהרכבה', qty: 1, unitPrice: 3500, isSplit: false, parts: [{ target: 'whole', baseProductId: 'b_personal', baseName: 'אישית בהרכבה', toppings: [{ toppingId: 't_mushroom', name: 'פטריות', action: 'add', price: 0 }] }] },
+          { id: 'h2b', productId: 's_garlic', name: 'לחם שום', qty: 1, unitPrice: 1500, isSplit: false, variantLabel: 'קטן', parts: [] },
+        ],
+      },
+    ],
+  },
+  '0527778888': {
+    phone: '0527778888',
+    name: 'יוסי לוי',
+    address: 'ביאליק 12, חיפה',
+    orderCount: 1,
+    lastOrderAt: Date.now() - 7 * 86_400_000,
+    past: [
+      {
+        id: 'h3',
+        date: 'שבוע שעבר',
+        total: 14500,
+        summary: 'חצי/חצי משפחתית, סלט יווני',
+        lines: [
+          {
+            id: 'h3a', productId: 'b_family', name: 'משפחתית בהרכבה', qty: 1, unitPrice: 6900, isSplit: true,
+            parts: [
+              { target: 'half_1', baseProductId: 'p_vino', baseName: 'וינו וינו', toppings: [] },
+              { target: 'half_2', baseProductId: 'p_shchitut', baseName: 'שחיתות', toppings: [] },
+            ],
+          },
+          { id: 'h3b', productId: 'sl_greek', name: 'סלט יווני', qty: 1, unitPrice: 5000, isSplit: false, parts: [] },
+        ],
+      },
+    ],
+  },
+};

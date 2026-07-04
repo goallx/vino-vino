@@ -9,6 +9,7 @@ import {
   removeBundle,
   saveBundle,
 } from './bundles';
+import { seedCatalog } from '../test/fixtures/seed';
 import type { Bundle } from '../types';
 
 const twoVino: Bundle = {
@@ -19,13 +20,14 @@ const twoVino: Bundle = {
   active: true,
 };
 
-beforeEach(() => localStorage.clear());
+beforeEach(seedCatalog);
 
 describe('bundles store', () => {
-  it('seeds active bundles on first load', () => {
-    const list = loadBundles();
-    expect(list.length).toBeGreaterThan(0);
+  it('serves cached bundles and is empty without a cache (DB is the source of truth)', () => {
+    expect(loadBundles().length).toBeGreaterThan(0);
     expect(listActiveBundles().length).toBeGreaterThan(0);
+    localStorage.clear();
+    expect(loadBundles()).toHaveLength(0);
   });
 
   it('upserts by id rather than duplicating', () => {

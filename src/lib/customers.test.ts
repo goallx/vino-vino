@@ -1,13 +1,14 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { getByPhone, searchByPhonePrefix, searchByAddress, recordOrder } from './customers';
+import { seedCatalog } from '../test/fixtures/seed';
 import type { CartLine } from '../types';
 
 const line: CartLine = { id: 'l', productId: 'p_vino', name: 'וינו וינו', qty: 1, unitPrice: 9500, isSplit: false, parts: [] };
 
-beforeEach(() => localStorage.clear());
+beforeEach(seedCatalog);
 
 describe('customer store', () => {
-  it('seeds known customers and finds them by exact phone', () => {
+  it('finds known customers by exact phone', () => {
     expect(getByPhone('0501234567')?.name).toBe('דנה כהן');
     expect(getByPhone('050-123-4567')?.name).toBe('דנה כהן'); // normalizes
   });

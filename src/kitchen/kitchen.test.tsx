@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { seedCatalog } from '../test/fixtures/seed';
 import { render, screen, act, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Kitchen } from './Kitchen';
@@ -17,7 +18,7 @@ function order(over: Partial<KitchenOrder> = {}): KitchenOrder {
   return { id: 'k1', number: 7, type: 'delivery', payment: 'unpaid', createdAt: Date.now(), status: 'new', lines: [splitPizza], ...over };
 }
 
-beforeEach(() => localStorage.clear());
+beforeEach(seedCatalog);
 
 describe('kitchen board', () => {
   it('shows an empty state when there are no active orders', () => {

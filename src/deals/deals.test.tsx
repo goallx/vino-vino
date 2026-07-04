@@ -2,11 +2,11 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Deals } from './Deals';
-import { productsById, reloadMenu } from '../lib/menuStore';
+import { productsById } from '../lib/menuStore';
+import { seedCatalog } from '../test/fixtures/seed';
 
 beforeEach(() => {
-  localStorage.clear();
-  reloadMenu();
+  seedCatalog();
   window.history.replaceState(null, '', '/deals');
 });
 

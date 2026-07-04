@@ -6,7 +6,7 @@ import { Wordmark } from '../components/Wordmark';
 
 export function Login() {
   const { signIn, mode } = useAuth();
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -15,7 +15,7 @@ export function Login() {
     e.preventDefault();
     setBusy(true);
     setError('');
-    const { error } = await signIn(username, password);
+    const { error } = await signIn(email, password);
     setBusy(false);
     if (error) setError(error);
   }
@@ -42,13 +42,15 @@ export function Login() {
         <p className="login__sub">מערכת ניהול הזמנות</p>
 
         <label className="login__field">
-          <span>שם משתמש</span>
+          <span>אימייל</span>
           <input
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            type="email"
+            dir="ltr"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             autoCapitalize="off"
-            autoComplete="username"
-            placeholder="שם משתמש"
+            autoComplete="email"
+            placeholder="name@vinovino.app"
           />
         </label>
 
@@ -74,7 +76,7 @@ export function Login() {
         </motion.button>
 
         {mode === 'local' && (
-          <p className="login__hint">מצב פיתוח · admin / vinovino</p>
+          <p className="login__hint">מצב פיתוח · admin@vinovino.app / vinovino</p>
         )}
       </motion.form>
     </div>

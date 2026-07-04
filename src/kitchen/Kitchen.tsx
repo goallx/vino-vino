@@ -3,7 +3,6 @@ import { AnimatePresence } from 'framer-motion';
 import { loadOrders, subscribe, setStatus } from '../lib/orderBus';
 import { KitchenCard } from './KitchenCard';
 import { Wordmark } from '../components/Wordmark';
-import { seedKitchenDemo } from './sampleKitchen';
 
 interface KitchenProps {
   onSignOut?: () => void;
@@ -14,9 +13,6 @@ export function Kitchen({ onSignOut }: KitchenProps = {}) {
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
-    if (import.meta.env.DEV && new URLSearchParams(window.location.search).has('demo')) {
-      seedKitchenDemo();
-    }
     setOrders(loadOrders());
     return subscribe(setOrders);
   }, []);
