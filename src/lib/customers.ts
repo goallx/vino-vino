@@ -12,10 +12,10 @@ export interface StoredCustomer {
 
 // Customer memory for phone/address autocomplete and the reorder panel.
 //
-// Supabase mode: the `customers` table is the source of truth — pulled whole
-// into the localStorage cache on load (restaurant scale: small), written
-// through on every sent order. Lookups stay synchronous off the cache.
-// Local mode (no env vars): localStorage seeded with sample history for dev.
+// The `customers` table is the source of truth — pulled whole into the
+// localStorage cache on load (restaurant scale: small), written through on
+// every sent order. Lookups stay synchronous off the cache. Tests seed the
+// cache from src/test/fixtures/catalog.ts.
 
 const KEY = 'vino:customers';
 const digits = (s: string) => s.replace(/\D/g, '');

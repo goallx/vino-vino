@@ -5,7 +5,7 @@ import { PizzaArt } from '../components/PizzaArt';
 import { Wordmark } from '../components/Wordmark';
 
 export function Login() {
-  const { signIn, mode } = useAuth();
+  const { signIn, configured } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -75,8 +75,8 @@ export function Login() {
           {busy ? 'מתחבר…' : 'התחברות'}
         </motion.button>
 
-        {mode === 'local' && (
-          <p className="login__hint">מצב פיתוח · admin@vinovino.app / vinovino</p>
+        {!configured && (
+          <p className="login__hint">⚠ חסרה הגדרת חיבור למסד הנתונים — יש למלא את .env</p>
         )}
       </motion.form>
     </div>

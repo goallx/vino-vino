@@ -9,21 +9,17 @@ export interface AuthUser {
 interface AuthState {
   user: AuthUser | null;
   loading: boolean;
-  mode: 'supabase' | 'local';
+  /** False only when the Supabase env vars are missing (misconfigured build). */
+  configured: boolean;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
 }
 
-// Sign-in only: staff accounts are created in the Supabase dashboard
-// (public sign-up disabled) and log in with email + password.
-
-// Local fallback credentials, used only when no Supabase project is configured
-// (tests, offline dev). In production these are inert — Supabase handles auth.
-const LOCAL_EMAIL = 'admin@vinovino.app';
-const LOCAL_PASS = 'vinovino';
-const LOCAL_KEY = 'vino:auth';
+// Supabase Auth is the only sign-in path: staff accounts are created in the
+// dashboard (public sign-up disabled) and log in with email + password.
 
 const BAD_CREDS = 'אימייל או סיסמה שגויים';
+const NOT_CONFIGURED = 'חסרה הגדרת חיבור למסד הנתונים (env)';
 
 const AuthCtx = createContext<AuthState | null>(null);
 
@@ -35,58 +31,34 @@ export function useAuth(): AuthState {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(isSupabaseEnabled);
 
   useEffect(() => {
-    if (isSupabaseEnabled && supabase) {
-      supabase.auth.getSession().then(({ data }) => {
-        setUser(data.session ? { username: usernameOf(data.session.user.email) } : null);
-        setLoading(false);
-      });
-      const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-        setUser(session ? { username: usernameOf(session.user.email) } : null);
-      });
-      return () => sub.subscription.unsubscribe();
-    }
-    // local mode
-    try {
-      const raw = localStorage.getItem(LOCAL_KEY);
-      setUser(raw ? (JSON.parse(raw) as AuthUser) : null);
-    } catch {
-      setUser(null);
-    }
-    setLoading(false);
+    if (!supabase) return;
+    supabase.auth.getSession().then(({ data }) => {
+      setUser(data.session ? { username: usernameOf(data.session.user.email) } : null);
+      setLoading(false);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      setUser(session ? { username: usernameOf(session.user.email) } : null);
+    });
+    return () => sub.subscription.unsubscribe();
   }, []);
 
   async function signIn(email: string, password: string): Promise<{ error?: string }> {
+    if (!supabase) return { error: NOT_CONFIGURED };
     const normalized = email.trim().toLowerCase();
     if (!normalized || !password) return { error: BAD_CREDS };
-
-    if (isSupabaseEnabled && supabase) {
-      const { error } = await supabase.auth.signInWithPassword({ email: normalized, password });
-      return error ? { error: BAD_CREDS } : {};
-    }
-
-    if (normalized === LOCAL_EMAIL && password === LOCAL_PASS) {
-      const u: AuthUser = { username: usernameOf(normalized) };
-      localStorage.setItem(LOCAL_KEY, JSON.stringify(u));
-      setUser(u);
-      return {};
-    }
-    return { error: BAD_CREDS };
+    const { error } = await supabase.auth.signInWithPassword({ email: normalized, password });
+    return error ? { error: signInError(error.message) } : {};
   }
 
   async function signOut() {
-    if (isSupabaseEnabled && supabase) {
-      await supabase.auth.signOut();
-    } else {
-      localStorage.removeItem(LOCAL_KEY);
-      setUser(null);
-    }
+    await supabase?.auth.signOut();
   }
 
   return (
-    <AuthCtx.Provider value={{ user, loading, mode: isSupabaseEnabled ? 'supabase' : 'local', signIn, signOut }}>
+    <AuthCtx.Provider value={{ user, loading, configured: isSupabaseEnabled, signIn, signOut }}>
       {children}
     </AuthCtx.Provider>
   );
@@ -94,4 +66,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 function usernameOf(email: string | undefined): string {
   return email ? email.split('@')[0] : 'משתמש';
+}
+
+/** Wrong credentials stay generic; configuration problems say what they are. */
+function signInError(message: string): string {
+  const m = message.toLowerCase();
+  if (m.includes('not confirmed')) return 'המשתמש טרם אומת — סמנו "Auto Confirm User" ביצירת המשתמש בלוח Supabase';
+  if (m.includes('logins are disabled') || m.includes('provider is not enabled'))
+    return 'התחברות באימייל כבויה בפרויקט — הפעילו את ספק ה‑Email בהגדרות Auth';
+  if (m.includes('rate limit')) return 'יותר מדי ניסיונות — נסו שוב בעוד רגע';
+  if (m.includes('invalid login credentials')) return BAD_CREDS;
+  return `שגיאת התחברות: ${message}`;
 }

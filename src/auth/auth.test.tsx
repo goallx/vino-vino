@@ -1,10 +1,46 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AuthProvider, useAuth } from './AuthContext';
-import { Login } from './Login';
 
-// In tests no Supabase env is set, so the provider runs in local-fallback mode.
+// Supabase Auth is the only sign-in path, so tests run against a mocked
+// client: one known account, an in-memory session, real onAuthStateChange
+// semantics. The component code under test is exactly what production runs.
+const TEST_EMAIL = 'staff@example.com';
+const TEST_PASS = 'correct-password';
+
+vi.mock('../lib/supabase', () => {
+  type Listener = (event: string, session: { user: { email: string } } | null) => void;
+  let session: { user: { email: string } } | null = null;
+  const listeners: Listener[] = [];
+  return {
+    isSupabaseEnabled: true,
+    supabase: {
+      auth: {
+        getSession: async () => ({ data: { session } }),
+        onAuthStateChange: (cb: Listener) => {
+          listeners.push(cb);
+          return { data: { subscription: { unsubscribe: () => {} } } };
+        },
+        signInWithPassword: async ({ email, password }: { email: string; password: string }) => {
+          if (email === TEST_EMAIL && password === TEST_PASS) {
+            session = { user: { email } };
+            listeners.forEach((cb) => cb('SIGNED_IN', session));
+            return { error: null };
+          }
+          return { error: { message: 'Invalid login credentials' } };
+        },
+        signOut: async () => {
+          session = null;
+          listeners.forEach((cb) => cb('SIGNED_OUT', null));
+        },
+      },
+    },
+  };
+});
+
+const { AuthProvider, useAuth } = await import('./AuthContext');
+const { Login } = await import('./Login');
+
 function Harness() {
   const { user } = useAuth();
   return user ? <div>שלום {user.username}</div> : <Login />;
@@ -19,34 +55,28 @@ const renderAuth = () =>
 
 beforeEach(() => localStorage.clear());
 
-describe('auth (local fallback)', () => {
-  it('shows the login screen when signed out', async () => {
-    renderAuth();
-    expect(await screen.findByRole('button', { name: 'התחברות' })).toBeInTheDocument();
-  });
-
+describe('auth (supabase)', () => {
   it('rejects wrong credentials with an error', async () => {
     const user = userEvent.setup();
     renderAuth();
-    await user.type(screen.getByPlaceholderText('name@vinovino.app'), 'admin@vinovino.app');
+    await user.type(await screen.findByPlaceholderText('name@vinovino.app'), TEST_EMAIL);
     await user.type(screen.getByPlaceholderText('סיסמה'), 'nope');
     await user.click(screen.getByRole('button', { name: 'התחברות' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/שגויים/);
   });
 
-  it('signs in with email + password and persists the session', async () => {
+  it('signs in with email + password and restores the session on remount', async () => {
     const user = userEvent.setup();
     const view = renderAuth();
-    await user.type(screen.getByPlaceholderText('name@vinovino.app'), 'Admin@Vinovino.app');
-    await user.type(screen.getByPlaceholderText('סיסמה'), 'vinovino');
+    await user.type(await screen.findByPlaceholderText('name@vinovino.app'), 'Staff@Example.com');
+    await user.type(screen.getByPlaceholderText('סיסמה'), TEST_PASS);
     await user.click(screen.getByRole('button', { name: 'התחברות' }));
 
-    expect(await screen.findByText(/שלום admin/)).toBeInTheDocument();
-    expect(localStorage.getItem('vino:auth')).toContain('admin');
+    expect(await screen.findByText(/שלום staff/)).toBeInTheDocument();
 
-    // a fresh mount restores the session from storage
+    // a fresh mount restores the session from the auth client
     view.unmount();
     renderAuth();
-    await waitFor(() => expect(screen.getByText(/שלום admin/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/שלום staff/)).toBeInTheDocument());
   });
 });
