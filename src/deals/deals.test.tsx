@@ -1,0 +1,104 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { Deals } from './Deals';
+import { productsById, reloadMenu } from '../lib/menuStore';
+
+beforeEach(() => {
+  localStorage.clear();
+  reloadMenu();
+  window.history.replaceState(null, '', '/deals');
+});
+
+describe('admin page tabs', () => {
+  it('shows the deals list by default and switches to the menu tab', async () => {
+    const user = userEvent.setup();
+    render(<Deals />);
+    // seeded deals visible
+    expect(screen.getByText('זוג משפחתיות')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'תפריט' }));
+    // category sections with seeded items
+    expect(screen.getByRole('heading', { name: 'פיצות' })).toBeInTheDocument();
+    expect(screen.getByText('וינו וינו')).toBeInTheDocument();
+  });
+
+  it('opens on the menu tab when visiting /menu', () => {
+    window.history.replaceState(null, '', '/menu');
+    render(<Deals />);
+    expect(screen.getByRole('heading', { name: 'פיצות' })).toBeInTheDocument();
+  });
+});
+
+describe('menu CRUD', () => {
+  it('adds a new item through the editor', async () => {
+    const user = userEvent.setup();
+    render(<Deals />);
+    await user.click(screen.getByRole('tab', { name: 'תפריט' }));
+    await user.click(screen.getByText('+ פריט חדש'));
+
+    const dialog = screen.getByRole('dialog', { name: 'עריכת פריט' });
+    await user.type(within(dialog).getByPlaceholderText('לדוגמה: פיצה מרגריטה'), 'קלצונה');
+    await user.type(within(dialog).getByPlaceholderText('0'), '45');
+    await user.click(within(dialog).getByText('שמור פריט'));
+
+    expect(screen.getByText('קלצונה')).toBeInTheDocument();
+    // persisted with the price in agorot
+    const saved = JSON.parse(localStorage.getItem('vino:menu')!).find(
+      (p: { name: string }) => p.name === 'קלצונה',
+    );
+    expect(saved.basePrice).toBe(4500);
+  });
+
+  it('edits an existing item price', async () => {
+    const user = userEvent.setup();
+    render(<Deals />);
+    await user.click(screen.getByRole('tab', { name: 'תפריט' }));
+
+    const card = screen.getByText('וינו וינו').closest('.mcard')!;
+    await user.click(within(card as HTMLElement).getByText('עריכה'));
+
+    const dialog = screen.getByRole('dialog', { name: 'עריכת פריט' });
+    const price = within(dialog).getByPlaceholderText('0');
+    await user.clear(price);
+    await user.type(price, '99');
+    await user.click(within(dialog).getByText('שמור פריט'));
+
+    expect(productsById['p_vino'].basePrice).toBe(9900);
+  });
+
+  it('toggles availability and deletes with confirmation', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    render(<Deals />);
+    await user.click(screen.getByRole('tab', { name: 'תפריט' }));
+
+    const card = screen.getByText('וינו וינו').closest('.mcard') as HTMLElement;
+    await user.click(within(card).getByText('זמין'));
+    expect(productsById['p_vino'].active).toBe(false);
+    expect(within(card).getByText('מוסתר', { selector: '.mcard__hidden' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'מחק וינו וינו' }));
+    expect(productsById['p_vino']).toBeUndefined();
+  });
+
+  it('keeps the pizza builder defaults when saving a pizza item', async () => {
+    const user = userEvent.setup();
+    render(<Deals />);
+    await user.click(screen.getByRole('tab', { name: 'תפריט' }));
+    await user.click(screen.getByText('+ פריט חדש'));
+
+    const dialog = screen.getByRole('dialog', { name: 'עריכת פריט' });
+    await user.type(within(dialog).getByPlaceholderText('לדוגמה: פיצה מרגריטה'), 'מרגריטה');
+    await user.type(within(dialog).getByPlaceholderText('0'), '60');
+    await user.click(within(dialog).getByText('פיצה 🍕'));
+    await user.click(within(dialog).getByText('שמור פריט'));
+
+    const saved = JSON.parse(localStorage.getItem('vino:menu')!).find(
+      (p: { name: string }) => p.name === 'מרגריטה',
+    );
+    expect(saved.isPizza).toBe(true);
+    expect(saved.splitCapable).toBe(true);
+    expect(saved.includedToppings).toBe(3);
+  });
+});
