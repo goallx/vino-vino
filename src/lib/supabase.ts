@@ -13,3 +13,15 @@ export const supabase: SupabaseClient | null =
   url && key ? createClient(url, key) : null;
 
 export const isSupabaseEnabled = supabase !== null;
+
+/**
+ * Re-run a module-load fetch once a session exists. Stores fetch at import
+ * time, which happens on the login screen as anon — RLS silently returns
+ * zero rows there, so without this a fresh device shows empty data until a
+ * manual reload.
+ */
+export function refetchOnAuth(fn: () => void): void {
+  supabase?.auth.onAuthStateChange((event, session) => {
+    if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) fn();
+  });
+}

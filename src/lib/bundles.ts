@@ -1,7 +1,7 @@
 import type { AppliedBundle, Bundle, CartLine, Money } from '../types';
 import { productsById } from './menuStore';
 import { computeUnitPrice, newLineId, wholePart } from './cart';
-import { supabase, isSupabaseEnabled } from './supabase';
+import { supabase, isSupabaseEnabled, refetchOnAuth } from './supabase';
 
 // Owner-managed combo deals.
 //
@@ -41,6 +41,7 @@ async function fetchBundles(): Promise<void> {
 
 if (isSupabaseEnabled && supabase) {
   void fetchBundles();
+  refetchOnAuth(() => void fetchBundles());
   supabase
     .channel('bundles-feed')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'bundles' }, () => void fetchBundles())

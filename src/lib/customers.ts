@@ -1,5 +1,5 @@
 import type { CartLine, PastOrder } from '../types';
-import { supabase, isSupabaseEnabled } from './supabase';
+import { supabase, isSupabaseEnabled, refetchOnAuth } from './supabase';
 
 export interface StoredCustomer {
   phone: string; // normalized digits
@@ -52,7 +52,10 @@ async function fetchCustomers(): Promise<void> {
   save(map);
 }
 
-if (isSupabaseEnabled) void fetchCustomers();
+if (isSupabaseEnabled) {
+  void fetchCustomers();
+  refetchOnAuth(() => void fetchCustomers());
+}
 
 export function loadCustomers(): Record<string, StoredCustomer> {
   try {

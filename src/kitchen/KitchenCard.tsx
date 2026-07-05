@@ -1,3 +1,4 @@
+import { forwardRef } from 'react';
 import { motion } from 'framer-motion';
 import type { KitchenOrder } from '../types';
 import { KitchenLine } from './KitchenLine';
@@ -15,7 +16,11 @@ function ageTier(minutes: number): 'fresh' | 'warn' | 'late' {
   return 'fresh';
 }
 
-export function KitchenCard({ order, now, onStart, onReady }: KitchenCardProps) {
+// forwardRef: AnimatePresence mode="popLayout" measures exiting cards via ref.
+export const KitchenCard = forwardRef<HTMLElement, KitchenCardProps>(function KitchenCard(
+  { order, now, onStart, onReady },
+  ref
+) {
   const minutes = Math.floor((now - order.createdAt) / 60000);
   const tier = ageTier(minutes);
   const timeLabel = minutes < 1 ? 'עכשיו' : `${minutes} ד׳`;
@@ -25,6 +30,7 @@ export function KitchenCard({ order, now, onStart, onReady }: KitchenCardProps) 
 
   return (
     <motion.article
+      ref={ref}
       layout
       className={`kcard kcard--${tier} ${order.status === 'preparing' ? 'kcard--prep' : ''}`}
       data-testid={`kcard-${order.id}`}
@@ -76,4 +82,4 @@ export function KitchenCard({ order, now, onStart, onReady }: KitchenCardProps) 
       </footer>
     </motion.article>
   );
-}
+});

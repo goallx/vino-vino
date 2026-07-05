@@ -1,5 +1,5 @@
 import type { Category, Product, Topping } from '../types';
-import { supabase, isSupabaseEnabled } from './supabase';
+import { supabase, isSupabaseEnabled, refetchOnAuth } from './supabase';
 
 // The catalog store: products, categories and toppings.
 //
@@ -159,6 +159,7 @@ loadAll();
 
 if (isSupabaseEnabled && supabase) {
   void fetchCatalog();
+  refetchOnAuth(() => void fetchCatalog());
   // Another device edited the menu — pick it up live.
   supabase
     .channel('products-feed')
