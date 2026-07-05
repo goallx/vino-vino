@@ -187,7 +187,7 @@ input, select { font-family: inherit; }
 }
 .line:last-child { border-bottom: none; }
 .line__main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.line__name { font-weight: 700; font-size: 16px; }
+.line__name { font-weight: 700; font-size: 16px; overflow-wrap: anywhere; }
 .line__sub { font-size: 12.5px; color: var(--basil-deep); line-height: 1.35; }
 .line__note { font-size: 12px; color: var(--amber); }
 .line__side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex: none; }
@@ -206,13 +206,16 @@ input, select { font-family: inherit; }
 /* ---------- customer block ---------- */
 .customer { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
 .customer__row { display: grid; grid-template-columns: 1.15fr 1fr; gap: 8px; }
+.customer__row > .field { min-width: 0; }
 .field {
   display: flex; align-items: center; gap: 8px;
   background: var(--surface); border: 1px solid var(--line-strong);
   border-radius: var(--r-sm); padding: 0 10px;
 }
 .field__icon { color: var(--ink-soft); font-size: 15px; }
-.field input { flex: 1; border: none; outline: none; background: none; padding: 11px 2px; font-size: 15.5px; }
+/* min-width: 0 — inputs otherwise refuse to shrink below their intrinsic
+   ~170px and burst the two-per-row grid out of the ticket on tablets */
+.field input { flex: 1; min-width: 0; width: 100%; border: none; outline: none; background: none; padding: 11px 2px; font-size: 15.5px; }
 .field--phone input { font-weight: 700; letter-spacing: .5px; }
 
 .toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 2px; }
@@ -238,6 +241,12 @@ input, select { font-family: inherit; }
 .btn--send:hover { background: var(--basil-deep); }
 .btn--send:active { transform: translateY(1px); }
 .btn--send:disabled { background: var(--line-strong); color: #fff; box-shadow: none; cursor: not-allowed; }
+.spinner {
+  display: inline-block; width: 16px; height: 16px; vertical-align: -3px;
+  border: 2.5px solid rgba(255, 255, 255, .35); border-top-color: #fff;
+  border-radius: 999px; animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 /* ---------- reorder panel ---------- */
 .reorder { background: #fff; border: 1.5px solid var(--basil); border-radius: var(--r-md); overflow: hidden; }

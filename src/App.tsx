@@ -12,7 +12,8 @@ import { bundleApplication } from './lib/bundles';
 import { getByPhone, searchByPhonePrefix, searchByAddress, recordOrder, type StoredCustomer } from './lib/customers';
 import { productsById } from './lib/menuStore';
 import { saveOrder } from './lib/saveOrder';
-import { publishOrder } from './lib/orderBus';
+import { loadOrders, publishOrder, subscribe } from './lib/orderBus';
+import { ordersForDay } from './analytics/metrics';
 
 interface BuilderTarget {
   product: Product;
@@ -37,10 +38,20 @@ export default function App({ username, onSignOut }: AppProps = {}) {
   const [builder, setBuilder] = useState<BuilderTarget | null>(null);
   const [match, setMatch] = useState<{ name?: string; past: PastOrder[] } | null>(null);
   const [dismissedMatch, setDismissedMatch] = useState(false);
-  const [orderNumber, setOrderNumber] = useState(() => Number(localStorage.getItem('vino:next-number') ?? '1'));
   const [toast, setToast] = useState<Toast | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [sending, setSending] = useState(false);
   const undoRef = useRef<UndoState | null>(null);
+
+  // The chit number mirrors the DB's daily_number (max of today's orders + 1)
+  // instead of a device-local counter, so the entry screen and the kitchen
+  // board always agree — even across devices and the daily reset.
+  const [orders, setOrders] = useState(loadOrders);
+  useEffect(() => {
+    setOrders(loadOrders());
+    return subscribe(setOrders);
+  }, []);
+  const orderNumber = ordersForDay(orders).reduce((max, o) => Math.max(max, o.number), 0) + 1;
 
   // Exact phone → reorder panel
   useEffect(() => {
@@ -150,34 +161,37 @@ export default function App({ username, onSignOut }: AppProps = {}) {
   }
 
   async function send() {
-    const result = await saveOrder(state, orderNumber);
-    if (!result.ok) {
-      flash('שמירה נכשלה — נסה שוב');
-      return;
+    if (sending) return;
+    setSending(true);
+    try {
+      const result = await saveOrder(state, orderNumber);
+      if (!result.ok) {
+        flash('שמירה נכשלה — נסה שוב');
+        return;
+      }
+      publishOrder({
+        id: `o_${Date.now()}_${orderNumber}`,
+        number: result.orderNumber,
+        type: state.type,
+        payment: state.payment,
+        createdAt: Date.now(),
+        status: 'new',
+        customerName: state.name || undefined,
+        phone: state.phone || undefined,
+        address: state.type === 'delivery' ? state.address || undefined : undefined,
+        note: state.note || undefined,
+        lines: state.lines,
+        discounts: state.discounts.length ? state.discounts : undefined,
+      });
+      // remember the customer by phone for next time
+      recordOrder({ phone: state.phone, name: state.name, address: state.address, lines: state.lines, total });
+      clearDraft();
+      dispatch({ kind: 'reset' });
+      setDismissedMatch(false);
+      flash(`הזמנה #${String(result.orderNumber).padStart(2, '0')} נשלחה למטבח`);
+    } finally {
+      setSending(false);
     }
-    publishOrder({
-      id: `o_${Date.now()}_${orderNumber}`,
-      number: result.orderNumber,
-      type: state.type,
-      payment: state.payment,
-      createdAt: Date.now(),
-      status: 'new',
-      customerName: state.name || undefined,
-      phone: state.phone || undefined,
-      address: state.type === 'delivery' ? state.address || undefined : undefined,
-      note: state.note || undefined,
-      lines: state.lines,
-      discounts: state.discounts.length ? state.discounts : undefined,
-    });
-    // remember the customer by phone for next time
-    recordOrder({ phone: state.phone, name: state.name, address: state.address, lines: state.lines, total });
-    const next = orderNumber + 1;
-    setOrderNumber(next);
-    localStorage.setItem('vino:next-number', String(next));
-    clearDraft();
-    dispatch({ kind: 'reset' });
-    setDismissedMatch(false);
-    flash(`הזמנה #${String(result.orderNumber).padStart(2, '0')} נשלחה למטבח`);
   }
 
   return (
@@ -216,6 +230,7 @@ export default function App({ username, onSignOut }: AppProps = {}) {
           addressSuggestions={addressSuggestions}
           onPickAddress={(address) => dispatch({ kind: 'setField', field: 'address', value: address })}
           canSend={state.lines.length > 0}
+          sending={sending}
         />
       </main>
 

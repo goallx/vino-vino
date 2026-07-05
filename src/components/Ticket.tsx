@@ -27,6 +27,7 @@ interface TicketProps {
   addressSuggestions: AddressSuggestion[];
   onPickAddress: (address: string) => void;
   canSend: boolean;
+  sending?: boolean;
 }
 
 export function Ticket(props: TicketProps) {
@@ -174,8 +175,14 @@ export function Ticket(props: TicketProps) {
             </span>
           </span>
         </div>
-        <button className="btn btn--send" disabled={!props.canSend} onClick={props.onSend}>
-          שלח למטבח →
+        <button className="btn btn--send" disabled={!props.canSend || props.sending} onClick={props.onSend}>
+          {props.sending ? (
+            <>
+              <span className="spinner" aria-hidden="true" /> שולח…
+            </>
+          ) : (
+            'שלח למטבח'
+          )}
         </button>
       </footer>
     </aside>

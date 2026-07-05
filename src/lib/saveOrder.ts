@@ -54,35 +54,43 @@ export async function saveOrder(state: OrderState, orderNumber: number): Promise
     return { ok: false, persisted: 'supabase', orderNumber };
   }
 
-  for (const line of state.lines) {
+  // Batched: one insert per table instead of one round-trip per line/part/
+  // topping — a big order was taking ~2s to send over sequential requests.
+  const lineRows = state.lines.map((line) => {
     const unit = computeUnitPrice(line);
-    const { data: row } = await supabase
-      .from('order_lines')
-      .insert({
-        order_id: order.id,
-        product_id: line.productId,
-        name_snapshot: line.name,
-        qty: line.qty,
-        is_split: line.isSplit,
-        unit_price: unit,
-        line_total: unit * line.qty,
-        note: line.note ?? null,
-      })
-      .select('id')
-      .single();
+    return {
+      order_id: order.id,
+      product_id: line.productId,
+      name_snapshot: line.name,
+      qty: line.qty,
+      is_split: line.isSplit,
+      unit_price: unit,
+      line_total: unit * line.qty,
+      note: line.note ?? null,
+    };
+  });
+  const { data: insertedLines, error: linesError } = await db
+    .from('order_lines')
+    .insert(lineRows)
+    .select('id');
+  if (linesError) console.error('[vino] failed to save order lines', linesError);
 
-    if (!row) continue;
+  const partRows: object[] = [];
+  const optionRows: object[] = [];
+  state.lines.forEach((line, i) => {
+    const lineId = insertedLines?.[i]?.id; // PostgREST returns rows in insert order
+    if (!lineId) return;
     for (const part of line.parts) {
-      await supabase.from('order_line_parts').insert({
-        order_line_id: row.id,
+      partRows.push({
+        order_line_id: lineId,
         target: part.target,
         base_product_id: part.baseProductId,
         base_name_snapshot: part.baseName,
         base_price: 0,
       });
       for (const t of part.toppings) {
-        await supabase.from('order_line_options').insert({
-          order_line_id: row.id,
+        optionRows.push({
+          order_line_id: lineId,
           label_snapshot: t.name,
           target: part.target,
           action: t.action,
@@ -90,7 +98,11 @@ export async function saveOrder(state: OrderState, orderNumber: number): Promise
         });
       }
     }
-  }
+  });
+  await Promise.all([
+    partRows.length ? db.from('order_line_parts').insert(partRows) : null,
+    optionRows.length ? db.from('order_line_options').insert(optionRows) : null,
+  ]);
 
   return { ok: true, persisted: 'supabase', orderNumber: order.daily_number ?? orderNumber };
 }
