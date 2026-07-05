@@ -11,3 +11,5 @@ agentdb.rvf
 agentdb.rvf.lock
 ruvector.db
 .claude-flow/
+supabase/.temp/
+.claude/
