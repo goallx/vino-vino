@@ -4,3 +4,10 @@ dist
 .env.local
 *.local
 .DS_Store
+
+# ruflo/agent runtime state — regenerated locally every session
+.swarm/
+agentdb.rvf
+agentdb.rvf.lock
+ruvector.db
+.claude-flow/
