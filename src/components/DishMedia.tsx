@@ -20,7 +20,7 @@ export function DishMedia({ product, size = 104 }: DishMediaProps) {
   if (photo) {
     return (
       <div className="dish dish--photo">
-        <img src={photo} alt="" loading="lazy" />
+        <img src={photo} alt="" loading="lazy" decoding="async" />
       </div>
     );
   }

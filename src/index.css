@@ -113,8 +113,13 @@ input, select { font-family: inherit; }
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-1);
   transition: border-color .15s ease, box-shadow .2s ease;
+  /* skip layout/paint for cards outside the scrollport (budget-tablet win) */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 240px;
 }
-.item:hover { border-color: var(--line-strong); box-shadow: var(--shadow-2); }
+@media (hover: hover) {
+  .item:hover { border-color: var(--line-strong); box-shadow: var(--shadow-2); }
+}
 
 .item__media {
   position: relative;
@@ -127,7 +132,8 @@ input, select { font-family: inherit; }
 .item__media .dish { display: grid; place-items: center; width: 100%; height: 100%; }
 .dish--photo { display: block; width: 100%; height: 100%; }
 .dish--photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.dish--art .pizza-art { filter: drop-shadow(0 8px 12px rgba(140, 30, 22, .2)); }
+/* no drop-shadow filter here: it forces per-frame rasterization of every
+   pizza SVG while the menu grid scrolls, which stutters on budget tablets */
 .dish--ph { opacity: .7; }
 
 .item__name { font-weight: 800; font-size: 17px; line-height: 1.2; }
@@ -188,17 +194,18 @@ input, select { font-family: inherit; }
 .line__price { font-weight: 800; color: var(--ink); }
 .stepper { display: flex; align-items: center; gap: 2px; background: var(--paper); border-radius: 999px; padding: 2px; }
 .stepper button {
-  width: 28px; height: 28px; border-radius: 999px; font-size: 18px; font-weight: 700;
+  width: 36px; height: 30px; border-radius: 999px; font-size: 18px; font-weight: 700;
   color: var(--vino); display: grid; place-items: center;
 }
 .stepper button:active { background: var(--paper-2); }
 .stepper span { min-width: 22px; text-align: center; font-weight: 700; }
 .line__tools { display: flex; gap: 2px; }
-.line__tools button { width: 28px; height: 26px; border-radius: var(--r-sm); color: var(--ink-soft); font-size: 14px; }
+.line__tools button { width: 36px; height: 30px; border-radius: var(--r-sm); color: var(--ink-soft); font-size: 15px; }
 .line__tools button:active { background: var(--paper); }
 
 /* ---------- customer block ---------- */
 .customer { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.customer__row { display: grid; grid-template-columns: 1.15fr 1fr; gap: 8px; }
 .field {
   display: flex; align-items: center; gap: 8px;
   background: var(--surface); border: 1px solid var(--line-strong);
@@ -283,7 +290,10 @@ input, select { font-family: inherit; }
   background: rgba(42, 8, 16, .42);
   display: grid; place-items: center; padding: 24px;
 }
-.popover { background: var(--surface); border-radius: var(--r-lg); padding: 18px; box-shadow: var(--shadow-2); min-width: 280px; }
+.popover-scrim { animation: fade-in .12s ease; }
+.popover { background: var(--surface); border-radius: var(--r-lg); padding: 18px; box-shadow: var(--shadow-2); min-width: 280px; animation: pop-in .14s ease; }
+@keyframes fade-in { from { opacity: 0; } }
+@keyframes pop-in { from { opacity: 0; transform: scale(.94); } }
 .popover__title { margin: 0 0 12px; font-weight: 700; }
 .popover__opts { display: flex; gap: 10px; }
 
@@ -347,10 +357,42 @@ input, select { font-family: inherit; }
 :focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; border-radius: 4px; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 
-/* ---------- tablet portrait fallback ---------- */
+/* ---------- tablet layout ----------
+   Keep menu + ticket side by side down to small-tablet portrait; the ticket
+   gets a guaranteed readable width instead of a fixed fraction. */
+@media (max-width: 1180px) {
+  .stage { grid-template-columns: minmax(0, 1fr) minmax(330px, 400px); gap: 10px; padding: 10px; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 10px; padding: 10px; }
+  .item__media { height: 108px; }
+  .item__name { font-size: 15.5px; }
+}
 @media (max-width: 900px) {
-  .stage { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
   .halves--split { grid-template-columns: 1fr; }
+}
+/* phones: stack, but cap each pane so the ticket lines never collapse */
+@media (max-width: 760px) {
+  .stage { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
+}
+
+/* short screens (tablet landscape): shrink the ticket chrome so the order
+   lines — not the name/phone block and send button — get the vertical space */
+@media (max-height: 840px) {
+  .topbar { padding: 6px 16px; }
+  .brand { font-size: 20px; }
+  .cats { padding: 8px 10px; }
+  .cat { padding: 7px 13px; font-size: 14px; }
+  .ticket__perf { display: none; }
+  .ticket__head { padding: 6px 14px; }
+  .ticket__number { font-size: 24px; }
+  .lines { padding: 2px 12px; }
+  .line { padding: 8px 2px; }
+  .customer { padding: 8px 12px; gap: 6px; }
+  .field input { padding: 8px 2px; font-size: 15px; }
+  .seg button { padding: 7px 4px; }
+  .ticket__foot { padding: 8px 12px 10px; }
+  .total { margin-bottom: 6px; }
+  .total__amount { font-size: 24px; }
+  .btn--send { padding: 12px; font-size: 17px; }
 }
 
 /* ============================================================
@@ -737,7 +779,6 @@ input, select { font-family: inherit; }
   border: 1px solid var(--line);
 }
 .dthumb .dish, .dthumb .dish--photo { width: 100%; height: 100%; }
-.dthumb .pizza-art { filter: drop-shadow(0 2px 3px rgba(140,30,22,.2)); }
 
 .line { align-items: center; }
 .line__main { flex: 1 1 auto; min-width: 0; }
@@ -774,7 +815,6 @@ input, select { font-family: inherit; }
 .basecard:active { transform: translateY(1px); }
 .basecard.is-active { border-color: var(--vino); background: #fff3f2; }
 .basecard span { font-size: 11px; font-weight: 700; line-height: 1.12; text-align: center; }
-.basecard .pizza-art { filter: drop-shadow(0 2px 4px rgba(140,30,22,.18)); }
 
 .toprow__base { font-size: 11px; font-weight: 700; color: var(--basil-deep); }
 
@@ -867,7 +907,9 @@ input, select { font-family: inherit; }
   overflow: hidden;
   transition: border-color .15s ease, box-shadow .2s ease;
 }
-.coupon:hover { border-color: var(--gold); box-shadow: var(--shadow-2); }
+@media (hover: hover) {
+  .coupon:hover { border-color: var(--gold); box-shadow: var(--shadow-2); }
+}
 /* the tear-off perforation running down the inside edge */
 .coupon__perf {
   position: absolute; inset-block: 12px; inset-inline-start: 14px;
@@ -962,7 +1004,9 @@ input, select { font-family: inherit; }
   overflow: hidden;
   transition: border-color .15s ease, box-shadow .2s ease;
 }
-.mcard:hover { border-color: var(--gold); box-shadow: var(--shadow-2); }
+@media (hover: hover) {
+  .mcard:hover { border-color: var(--gold); box-shadow: var(--shadow-2); }
+}
 .mcard.is-off { opacity: .58; }
 .mcard__head { display: flex; gap: 12px; align-items: center; padding: 12px 14px; position: relative; }
 .mcard__thumb { flex: none; width: 64px; height: 64px; display: grid; place-items: center; }

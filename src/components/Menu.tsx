@@ -1,5 +1,4 @@
 import { useState, useSyncExternalStore } from 'react';
-import { AnimatePresence, motion, type Variants } from 'framer-motion';
 import type { Bundle, Product, Variant } from '../types';
 import { activeProducts, categories, menuVersion, productsById, subscribeMenu } from '../lib/menuStore';
 import { shekels } from '../lib/money';
@@ -13,12 +12,6 @@ interface MenuProps {
 }
 
 const DEALS_CAT = 'deals';
-
-const grid: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.025 } } };
-const card: Variants = {
-  hidden: { opacity: 0, y: 12, scale: 0.97 },
-  show: { opacity: 1, y: 0, scale: 1, transition: { type: 'spring', stiffness: 420, damping: 30 } },
-};
 
 export function Menu({ onAddProduct, onOpenBuilder, onApplyBundle }: MenuProps) {
   // Bundles are owner-managed in /deals; re-read when the store changes.
@@ -56,19 +49,18 @@ export function Menu({ onAddProduct, onOpenBuilder, onApplyBundle }: MenuProps) 
     <section className="menu" aria-label="תפריט">
       <nav className="cats" aria-label="קטגוריות">
         {cats.map((c) => (
-          <motion.button
+          <button
             key={c.id}
             className={`cat ${c.id === DEALS_CAT ? 'cat--deals' : ''} ${c.id === activeCat ? 'is-active' : ''}`}
             onClick={() => setActiveCat(c.id)}
-            whileTap={{ scale: 0.94 }}
           >
             {c.id === DEALS_CAT && <span aria-hidden="true">★ </span>}
             {c.name}
-          </motion.button>
+          </button>
         ))}
       </nav>
 
-      <motion.div className={`grid ${onDeals ? 'grid--deals' : ''}`} key={activeCat} variants={grid} initial="hidden" animate="show">
+      <div className={`grid ${onDeals ? 'grid--deals' : ''}`} key={activeCat}>
         {onDeals &&
           bundles.map((b) => {
             const saving = bundleSaving(b);
@@ -76,14 +68,7 @@ export function Menu({ onAddProduct, onOpenBuilder, onApplyBundle }: MenuProps) 
               .map((it) => `${it.qty}× ${productsById[it.productId]?.name ?? '—'}`)
               .join(' + ');
             return (
-              <motion.button
-                key={b.id}
-                className="coupon"
-                onClick={() => onApplyBundle(b)}
-                variants={card}
-                whileHover={{ y: -4 }}
-                whileTap={{ scale: 0.97 }}
-              >
+              <button key={b.id} className="coupon" onClick={() => onApplyBundle(b)}>
                 <span className="coupon__perf" aria-hidden="true" />
                 <span className="coupon__name">{b.name}</span>
                 <span className="coupon__items">{items}</span>
@@ -91,11 +76,11 @@ export function Menu({ onAddProduct, onOpenBuilder, onApplyBundle }: MenuProps) 
                   {saving > 0 && <span className="coupon__was">{shekels(bundleGross(b))}</span>}
                   <span className="coupon__price">{shekels(b.price)}</span>
                 </span>
-              </motion.button>
+              </button>
             );
           })}
         {visible.map((p) => (
-          <motion.div
+          <div
             key={p.id}
             className="item"
             role="button"
@@ -107,75 +92,57 @@ export function Menu({ onAddProduct, onOpenBuilder, onApplyBundle }: MenuProps) 
                 handleTap(p);
               }
             }}
-            variants={card}
-            whileHover={{ y: -4 }}
-            whileTap={{ scale: 0.97 }}
           >
             <div className="item__media">
               <DishMedia product={p} size={140} />
               {p.isPizza && <span className="item__tag">בנייה</span>}
-              <motion.button
+              <button
                 className="item__add"
                 aria-label={`הוסף ${p.name}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   quickAdd(p);
                 }}
-                whileTap={{ scale: 0.85 }}
               >
                 +
-              </motion.button>
+              </button>
             </div>
             <span className="item__name">{p.name}</span>
             {p.description && <span className="item__desc">{p.description}</span>}
             <span className="item__price">
               {p.variants ? `מ־${shekels(p.variants[0].price)}` : shekels(p.basePrice)}
             </span>
-          </motion.div>
+          </div>
         ))}
-      </motion.div>
+      </div>
 
-      <AnimatePresence>
-        {variantFor && (
-          <motion.div
-            className="popover-scrim"
-            onClick={() => setVariantFor(null)}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
+      {variantFor && (
+        <div className="popover-scrim" onClick={() => setVariantFor(null)}>
+          <div
+            className="popover"
+            role="dialog"
+            aria-label="בחרו גודל"
+            onClick={(e) => e.stopPropagation()}
           >
-            <motion.div
-              className="popover"
-              role="dialog"
-              aria-label="בחרו גודל"
-              onClick={(e) => e.stopPropagation()}
-              initial={{ scale: 0.9, opacity: 0, y: 8 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 8 }}
-              transition={{ type: 'spring', stiffness: 380, damping: 28 }}
-            >
-              <p className="popover__title">{variantFor.name} · בחרו גודל</p>
-              <div className="popover__opts">
-                {variantFor.variants!.map((v) => (
-                  <motion.button
-                    key={v.id}
-                    className="chip chip--lg"
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => {
-                      onAddProduct(variantFor, v);
-                      setVariantFor(null);
-                    }}
-                  >
-                    <span>{v.label}</span>
-                    <span className="chip__price">{shekels(v.price)}</span>
-                  </motion.button>
-                ))}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <p className="popover__title">{variantFor.name} · בחרו גודל</p>
+            <div className="popover__opts">
+              {variantFor.variants!.map((v) => (
+                <button
+                  key={v.id}
+                  className="chip chip--lg"
+                  onClick={() => {
+                    onAddProduct(variantFor, v);
+                    setVariantFor(null);
+                  }}
+                >
+                  <span>{v.label}</span>
+                  <span className="chip__price">{shekels(v.price)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

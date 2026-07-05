@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
 import { loadOrders, subscribe, setStatus } from '../lib/orderBus';
 import { ordersForDay, orderRevenue } from '../analytics/metrics';
 import { lineSummary } from '../lib/cart';
@@ -49,14 +48,7 @@ function OrderRow({ order, onCancel }: { order: KitchenOrder; onCancel: (id: str
   const cancellable = order.status !== 'cancelled';
 
   return (
-    <motion.article
-      layout
-      className={`orow ${order.status === 'cancelled' ? 'orow--cancelled' : ''}`}
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.98 }}
-      transition={{ type: 'spring', stiffness: 360, damping: 30 }}
-    >
+    <article className={`orow ${order.status === 'cancelled' ? 'orow--cancelled' : ''}`}>
       <div className="orow__head">
         <span className="orow__num">#{String(order.number).padStart(2, '0')}</span>
         <span className={`st ${st.cls}`}>{st.label}</span>
@@ -97,7 +89,7 @@ function OrderRow({ order, onCancel }: { order: KitchenOrder; onCancel: (id: str
           )}
         </div>
       )}
-    </motion.article>
+    </article>
   );
 }
 
@@ -136,11 +128,9 @@ export function Orders({ onSignOut }: OrdersProps = {}) {
         {shown.length === 0 ? (
           <p className="olist__empty">אין הזמנות להצגה</p>
         ) : (
-          <AnimatePresence>
-            {shown.map((o) => (
-              <OrderRow key={o.id} order={o} onCancel={(id) => setStatus(id, 'cancelled')} />
-            ))}
-          </AnimatePresence>
+          shown.map((o) => (
+            <OrderRow key={o.id} order={o} onCancel={(id) => setStatus(id, 'cancelled')} />
+          ))
         )}
       </main>
     </div>

@@ -58,8 +58,36 @@ function marksFor(whole: string[] | undefined, left: string[] | undefined, right
 
 export function PizzaArt({ whole, left, right, split = false, size = 120, animate = false, idle = false, focus }: PizzaArtProps) {
   const marks = marksFor(whole, left, right, split);
-  const MarkWrap = animate ? motion.g : 'g';
   const spin = idle && !split; // don't rotate a half/half pie
+  // Static renders (menu cards, ticket thumbs) skip framer-motion entirely —
+  // dozens of these mount at once and cheap tablets choke on the overhead.
+  const Wrap = spin ? motion.g : 'g';
+  const wrapProps = spin
+    ? {
+        animate: { rotate: 360 },
+        transition: { duration: 90, ease: 'linear' as const, repeat: Infinity },
+        style: { transformOrigin: '100px 100px' },
+      }
+    : {};
+
+  const markNodes = marks.map((m, i) =>
+    animate ? (
+      <motion.g
+        key={m.key}
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0, opacity: 0 }}
+        transition={{ type: 'spring', stiffness: 500, damping: 18, delay: Math.min(i * 0.015, 0.3) }}
+        style={{ transformOrigin: `${m.x}px ${m.y}px` }}
+      >
+        <PieMark id={m.id} x={m.x} y={m.y} />
+      </motion.g>
+    ) : (
+      <g key={m.key}>
+        <PieMark id={m.id} x={m.x} y={m.y} />
+      </g>
+    )
+  );
 
   return (
     <svg width={size} height={size} viewBox="0 0 200 200" className="pizza-art" aria-hidden="true">
@@ -74,11 +102,7 @@ export function PizzaArt({ whole, left, right, split = false, size = 120, animat
         </radialGradient>
       </defs>
 
-      <motion.g
-        animate={spin ? { rotate: 360 } : undefined}
-        transition={spin ? { duration: 90, ease: 'linear', repeat: Infinity } : undefined}
-        style={{ transformOrigin: '100px 100px' }}
-      >
+      <Wrap {...wrapProps}>
         <circle cx={C} cy={C} r="94" fill="url(#crust)" stroke="#a96d2c" strokeWidth="2" />
         <circle cx={C} cy={C} r="80" fill="#cf5a2b" />
         <circle cx={C} cy={C} r="77" fill="url(#cheese)" />
@@ -89,26 +113,7 @@ export function PizzaArt({ whole, left, right, split = false, size = 120, animat
 
         {split && <line x1={C} y1="24" x2={C} y2="176" stroke="#caa15c" strokeWidth="2.5" strokeDasharray="4 4" />}
 
-        <AnimatePresence>
-          {marks.map((m, i) =>
-            animate ? (
-              <motion.g
-                key={m.key}
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0, opacity: 0 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 18, delay: Math.min(i * 0.015, 0.3) }}
-                style={{ transformOrigin: `${m.x}px ${m.y}px` }}
-              >
-                <PieMark id={m.id} x={m.x} y={m.y} />
-              </motion.g>
-            ) : (
-              <MarkWrap key={m.key}>
-                <PieMark id={m.id} x={m.x} y={m.y} />
-              </MarkWrap>
-            )
-          )}
-        </AnimatePresence>
+        {animate ? <AnimatePresence>{markNodes}</AnimatePresence> : markNodes}
 
         {split && focus && (
           <path
@@ -117,7 +122,7 @@ export function PizzaArt({ whole, left, right, split = false, size = 120, animat
             opacity="0.5"
           />
         )}
-      </motion.g>
+      </Wrap>
     </svg>
   );
 }
