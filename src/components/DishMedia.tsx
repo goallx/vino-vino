@@ -1,26 +1,27 @@
 import type { Product } from '../types';
 import { PizzaArt } from './PizzaArt';
-import { photos } from '../data/photos';
 
 interface DishMediaProps {
   product: Product;
   size?: number;
 }
 
-/** Pizza → SVG illustration; other dishes → real Wolt photo; else a branded tile. */
+/**
+ * Owner-uploaded photo (Supabase Storage) → real photo; pizza without one →
+ * SVG illustration; anything else → branded placeholder tile.
+ */
 export function DishMedia({ product, size = 104 }: DishMediaProps) {
+  if (product.photoUrl) {
+    return (
+      <div className="dish dish--photo">
+        <img src={product.photoUrl} alt="" loading="lazy" decoding="async" />
+      </div>
+    );
+  }
   if (product.isPizza) {
     return (
       <div className="dish dish--art">
         <PizzaArt whole={product.art ?? []} size={size} />
-      </div>
-    );
-  }
-  const photo = photos[product.id];
-  if (photo) {
-    return (
-      <div className="dish dish--photo">
-        <img src={photo} alt="" loading="lazy" decoding="async" />
       </div>
     );
   }

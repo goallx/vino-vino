@@ -51,6 +51,7 @@ interface ProductRow {
   art: string[] | null;
   active: boolean;
   sort: number;
+  photo_url?: string | null;
 }
 
 function rowToProduct(row: ProductRow): Product {
@@ -66,6 +67,7 @@ function rowToProduct(row: ProductRow): Product {
     variants: row.variants ?? undefined,
     art: row.art ?? undefined,
     active: row.active,
+    photoUrl: row.photo_url ?? undefined,
   };
 }
 
@@ -83,6 +85,7 @@ function productToRow(p: Product, sort: number): ProductRow {
     art: p.art ?? null,
     active: p.active !== false,
     sort,
+    photo_url: p.photoUrl ?? null,
   };
 }
 

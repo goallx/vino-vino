@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { Product } from '../types';
 import { categories, newProductId, products, removeProduct, saveProduct } from '../lib/menuStore';
+import { uploadProductPhoto, removeProductPhoto } from '../lib/photos';
 import { shekels } from '../lib/money';
 import { DishMedia } from '../components/DishMedia';
 
@@ -38,6 +39,7 @@ export function MenuAdmin({ editing, onEdit }: MenuAdminProps) {
   function del(p: Product) {
     if (!window.confirm(`למחוק את "${p.name || 'ללא שם'}" מהתפריט?`)) return;
     removeProduct(p.id);
+    if (p.photoUrl) void removeProductPhoto(p.id);
     bump();
   }
 
@@ -100,12 +102,29 @@ interface ProductEditorProps {
 
 function ProductEditor({ initial, onCancel, onSave }: ProductEditorProps) {
   const [draft, setDraft] = useState<Product>(initial);
+  const [uploading, setUploading] = useState(false);
   const isNew = !initial.name;
-  const valid = draft.name.trim().length > 0 && draft.basePrice > 0;
+  const valid = draft.name.trim().length > 0 && draft.basePrice > 0 && !uploading;
 
   function setPrice(shekelText: string) {
     const n = Math.max(0, Math.round(Number(shekelText) * 100));
     setDraft((d) => ({ ...d, basePrice: Number.isFinite(n) ? n : 0 }));
+  }
+
+  async function onPickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setUploading(true);
+    const url = await uploadProductPhoto(draft.id, file);
+    setUploading(false);
+    if (url) setDraft((d) => ({ ...d, photoUrl: url }));
+    else window.alert('העלאת התמונה נכשלה — נסו שוב');
+  }
+
+  async function onRemovePhoto() {
+    setDraft((d) => ({ ...d, photoUrl: undefined }));
+    void removeProductPhoto(draft.id);
   }
 
   return (
@@ -144,6 +163,24 @@ function ProductEditor({ initial, onCancel, onSave }: ProductEditorProps) {
             <span>תיאור (רשות)</span>
             <input type="text" placeholder="לדוגמה: פטריות, בצל, זיתים" value={draft.description ?? ''} onChange={(e) => setDraft({ ...draft, description: e.target.value || undefined })} />
           </label>
+
+          <div className="dfield">
+            <span>תמונה (רשות)</span>
+            <div className="dphoto">
+              {draft.photoUrl ? (
+                <img className="dphoto__preview" src={draft.photoUrl} alt="" />
+              ) : (
+                <span className="dphoto__none">ללא תמונה</span>
+              )}
+              <label className="btn btn--ghost btn--sm dphoto__pick">
+                {uploading ? 'מעלה…' : draft.photoUrl ? 'החלפה' : 'העלאת תמונה'}
+                <input type="file" accept="image/*" hidden onChange={onPickPhoto} disabled={uploading} />
+              </label>
+              {draft.photoUrl && !uploading && (
+                <button className="btn btn--ghost btn--sm" onClick={onRemovePhoto}>הסרה</button>
+              )}
+            </div>
+          </div>
 
           <label className="dfield">
             <span>{draft.variants ? 'מחיר בסיס (לפריט יש גם גדלים)' : 'מחיר'}</span>

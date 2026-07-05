@@ -34,6 +34,7 @@ export interface Product {
   variants?: Variant[]; // size choices — tapping opens the size popover
   art?: string[]; // topping ids depicted on the pizza illustration
   active?: boolean; // owner availability toggle; absent = available
+  photoUrl?: string; // Supabase Storage public URL, uploaded from the menu admin
 }
 
 // ---- order-side (cart) shapes ----
