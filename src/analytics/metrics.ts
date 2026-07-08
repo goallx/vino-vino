@@ -33,7 +33,7 @@ export interface DailyMetrics {
 }
 
 export function orderRevenue(order: KitchenOrder): Money {
-  return linesSubtotal(order.lines);
+  return linesSubtotal(order.lines) + (order.deliveryFee ?? 0);
 }
 
 /** Bundle saving applied to an order, never more than the order is worth. */

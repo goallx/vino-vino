@@ -7,10 +7,17 @@ export function newLineId(): string {
   return `l_${Date.now().toString(36)}_${counter}`;
 }
 
-/** Paid toppings on one part = added toppings beyond the included count. */
+/**
+ * Paid toppings on one part. The product's fixed price already includes its
+ * base toppings (its `art`), so those consume the free allowance first: only
+ * `includedToppings − baseCount` *added* toppings stay free, the rest are
+ * charged. A build-your-own pie (no base art) keeps its full free allowance.
+ */
 function partExtraCost(part: LinePart, included: number): Money {
+  const baseCount = productsById[part.baseProductId]?.art?.length ?? 0;
+  const freeAdded = Math.max(0, included - baseCount);
   const added = part.toppings.filter((t) => t.action === 'add');
-  return added.slice(included).reduce((sum, t) => sum + t.price, 0);
+  return added.slice(freeAdded).reduce((sum, t) => sum + t.price, 0);
 }
 
 export function computeUnitPrice(line: CartLine): Money {
@@ -56,10 +63,14 @@ export interface OrderTotals {
  * of truth shared by the live ticket, the persisted order, and the reports, so
  * the number the owner quotes can never drift from what gets saved or reported.
  */
-export function orderTotals(lines: CartLine[], discounts: AppliedBundle[] = []): OrderTotals {
+export function orderTotals(
+  lines: CartLine[],
+  discounts: AppliedBundle[] = [],
+  deliveryFee: Money = 0,
+): OrderTotals {
   const subtotal = linesSubtotal(lines);
   const discount = discountsTotal(discounts);
-  return { subtotal, discount, total: Math.max(0, subtotal - discount) };
+  return { subtotal, discount, total: Math.max(0, subtotal - discount) + deliveryFee };
 }
 
 /** One whole part that mirrors the product itself (no modifications). */

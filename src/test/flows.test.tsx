@@ -127,24 +127,24 @@ describe('bundle deals', () => {
     expect(total()).toHaveTextContent('₪160');
   });
 
-  it('raises the total when a paid topping is added to a bundle pizza, keeping the deal saving fixed', async () => {
+  it('raises the total when paid toppings are added to a bundle pizza, keeping the deal saving fixed', async () => {
     const user = userEvent.setup();
     render(<App />);
     await openCategory(user, 'מבצעים');
     await user.click(screen.getByText('זוג משפחתיות', { selector: '.coupon__name' }).closest('.coupon') as HTMLElement);
     expect(total()).toHaveTextContent('₪160');
 
-    // edit the first bundle pizza → builder
+    // edit the first bundle pizza → builder. וינו's price already includes its
+    // 3 base toppings, so every one of these 4 additions is charged (+₪5 each).
     await user.click(within(ticket()).getAllByRole('button', { name: 'ערוך' })[0]);
     const dialog = screen.getByRole('dialog', { name: /בניית/ });
-    // 3 extra toppings are included; the 4th is charged (+₪5)
     for (const t of ['פטריות', 'בצל', 'זיתים', 'תירס']) {
       await user.click(within(dialog).getByText(t).closest('button') as HTMLButtonElement);
     }
     await user.click(within(dialog).getByRole('button', { name: /עדכן/ }));
 
-    // gross 195 − fixed deal saving 30 = 165
-    expect(total()).toHaveTextContent('₪165');
+    // gross 190 + 4×5 = 210 − fixed deal saving 30 = 180
+    expect(total()).toHaveTextContent('₪180');
     expect(within(ticket()).getByText('זוג משפחתיות', { selector: '.disc__name' })).toBeInTheDocument();
     expect(within(ticket()).getByText('−₪30', { selector: '.disc__amount' })).toBeInTheDocument();
   });
@@ -188,32 +188,39 @@ describe('quantity, merge and remove with undo', () => {
   });
 });
 
+// The customer details live on the full-width checkout step now; the "↻ לקוח קבוע"
+// shortcut jumps there from an empty ticket so the returning-customer flow survives.
+const goCheckout = (user: UserEvent) => user.click(screen.getByRole('button', { name: /לקוח קבוע/ }));
+
 describe('phone autocomplete', () => {
   it('suggests a returning customer from a partial number and fills their details', async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.type(within(ticket()).getByPlaceholderText('טלפון'), '050');
+    await goCheckout(user);
+    await user.type(screen.getByPlaceholderText('טלפון'), '050');
 
     const suggestion = await screen.findByText('דנה כהן');
     await user.click(suggestion);
 
-    expect(within(ticket()).getByPlaceholderText('שם')).toHaveValue('דנה כהן');
+    expect(screen.getByPlaceholderText('שם')).toHaveValue('דנה כהן');
     expect(await screen.findByText(/הזמנות קודמות/)).toBeInTheDocument();
   });
 });
 
 describe('phone lookup → reorder', () => {
-  it('shows past orders and clones one into the ticket', async () => {
+  it('shows past orders and clones one into the order', async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.type(within(ticket()).getByPlaceholderText('טלפון'), '0501234567');
+    await goCheckout(user);
+    await user.type(screen.getByPlaceholderText('טלפון'), '0501234567');
 
     expect(await screen.findByText(/הזמנות קודמות/)).toBeInTheDocument();
     const cloneButtons = screen.getAllByRole('button', { name: 'שכפל' });
     await user.click(cloneButtons[0]);
 
-    expect(within(ticket()).getByText('שחיתות', { selector: '.line__name' })).toBeInTheDocument();
-    expect(within(ticket()).getByPlaceholderText('שם')).toHaveValue('דנה כהן');
+    const summary = screen.getByRole('complementary', { name: 'סיכום הזמנה' });
+    expect(within(summary).getByText('שחיתות', { selector: '.csum__name' })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('שם')).toHaveValue('דנה כהן');
   });
 });
 
@@ -221,16 +228,35 @@ describe('order type toggle', () => {
   it('hides the address field for pickup', async () => {
     const user = userEvent.setup();
     render(<App />);
-    expect(within(ticket()).getByPlaceholderText('כתובת')).toBeInTheDocument();
-    await user.click(within(ticket()).getByRole('button', { name: 'איסוף' }));
-    await waitFor(() => expect(within(ticket()).queryByPlaceholderText('כתובת')).not.toBeInTheDocument());
+    await goCheckout(user);
+    expect(screen.getByPlaceholderText('כתובת')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'איסוף' }));
+    await waitFor(() => expect(screen.queryByPlaceholderText('כתובת')).not.toBeInTheDocument());
+  });
+});
+
+describe('delivery fee', () => {
+  it('adds the chosen fee to the total and clears it on pickup', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openCategory(user, 'שתייה');
+    await clickItem(user, 'קוקה קולה 0.33'); // ₪10
+    await user.click(within(ticket()).getByRole('button', { name: /המשך/ }));
+
+    await user.click(screen.getByRole('button', { name: '₪15' }));
+    expect(screen.getByTestId('ticket-total')).toHaveTextContent('₪25');
+
+    // switching to pickup drops the fee and hides the pills
+    await user.click(screen.getByRole('button', { name: 'איסוף' }));
+    expect(screen.queryByRole('group', { name: 'דמי משלוח' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('ticket-total')).toHaveTextContent('₪10');
   });
 });
 
 describe('send order', () => {
-  it('disables send until there is a line', async () => {
+  it('disables the continue button until there is a line', async () => {
     render(<App />);
-    expect(within(ticket()).getByRole('button', { name: /שלח למטבח/ })).toBeDisabled();
+    expect(within(ticket()).getByRole('button', { name: /המשך/ })).toBeDisabled();
   });
 
   it('clears the ticket and advances the order number after sending', async () => {
@@ -240,7 +266,8 @@ describe('send order', () => {
 
     await openCategory(user, 'שתייה');
     await clickItem(user, 'קוקה קולה 0.33');
-    await user.click(within(ticket()).getByRole('button', { name: /שלח למטבח/ }));
+    await user.click(within(ticket()).getByRole('button', { name: /המשך/ }));
+    await user.click(screen.getByRole('button', { name: /שלח למטבח/ }));
 
     await waitFor(() => expect(orderNo()).toHaveTextContent('#02'));
     expect(within(ticket()).getByText(/כדי להתחיל הזמנה/)).toBeInTheDocument();

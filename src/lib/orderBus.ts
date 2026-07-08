@@ -57,6 +57,7 @@ interface OrderRow {
   payment_status: KitchenOrder['payment'];
   lines: CartLine[] | null;
   discounts: AppliedBundle[] | null;
+  delivery_fee: number | null;
   created_at: string;
 }
 
@@ -74,6 +75,7 @@ function rowToOrder(row: OrderRow): KitchenOrder {
     note: row.note ?? undefined,
     lines: row.lines ?? [],
     discounts: row.discounts ?? undefined,
+    deliveryFee: row.delivery_fee ?? undefined,
   };
 }
 

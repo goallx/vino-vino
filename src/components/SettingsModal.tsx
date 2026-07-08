@@ -10,7 +10,8 @@ interface SettingsModalProps {
 /**
  * The "manager's chit": everything that used to crowd the topbar —
  * admin pages, the other screens, sign-out — grouped in one panel.
- * Links open in a new tab so a half-built order is never lost.
+ * Links navigate in place (no new tab — tablet browsers hide tabs and a
+ * stray one is easy to lose); the in-progress order is autosaved as a draft.
  */
 export function SettingsModal({ username, onSignOut, onClose }: SettingsModalProps) {
   useEffect(() => {
@@ -53,49 +54,49 @@ export function SettingsModal({ username, onSignOut, onClose }: SettingsModalPro
         <div className="settings__body">
           <section className="sgroup" aria-label="ניהול">
             <h3 className="sgroup__label">ניהול</h3>
-            <a className="srow" href="/menu" target="_blank" rel="noreferrer">
+            <a className="srow" href="/menu">
               <span className="srow__icon" aria-hidden="true">📋</span>
               <span className="srow__text">
                 <span className="srow__name">תפריט</span>
                 <span className="srow__desc">הוספה ועריכה של פריטים ומחירים</span>
               </span>
-              <span className="srow__go" aria-hidden="true">↗</span>
+              <span className="srow__go" aria-hidden="true">←</span>
             </a>
-            <a className="srow" href="/deals" target="_blank" rel="noreferrer">
+            <a className="srow" href="/deals">
               <span className="srow__icon" aria-hidden="true">🏷️</span>
               <span className="srow__text">
                 <span className="srow__name">מבצעים</span>
                 <span className="srow__desc">חבילות במחיר קבוע</span>
               </span>
-              <span className="srow__go" aria-hidden="true">↗</span>
+              <span className="srow__go" aria-hidden="true">←</span>
             </a>
           </section>
 
           <section className="sgroup" aria-label="מסכים">
             <h3 className="sgroup__label">מסכים</h3>
-            <a className="srow" href="/kitchen" target="_blank" rel="noreferrer">
+            <a className="srow" href="/kitchen">
               <span className="srow__icon" aria-hidden="true">👨‍🍳</span>
               <span className="srow__text">
                 <span className="srow__name">מסך מטבח</span>
                 <span className="srow__desc">לוח ההזמנות למטבח</span>
               </span>
-              <span className="srow__go" aria-hidden="true">↗</span>
+              <span className="srow__go" aria-hidden="true">←</span>
             </a>
-            <a className="srow" href="/orders" target="_blank" rel="noreferrer">
+            <a className="srow" href="/orders">
               <span className="srow__icon" aria-hidden="true">🧾</span>
               <span className="srow__text">
                 <span className="srow__name">הזמנות</span>
                 <span className="srow__desc">כל ההזמנות של היום</span>
               </span>
-              <span className="srow__go" aria-hidden="true">↗</span>
+              <span className="srow__go" aria-hidden="true">←</span>
             </a>
-            <a className="srow" href="/reports" target="_blank" rel="noreferrer">
+            <a className="srow" href="/reports">
               <span className="srow__icon" aria-hidden="true">📈</span>
               <span className="srow__text">
                 <span className="srow__name">דוח יומי</span>
                 <span className="srow__desc">הכנסות ונתוני מכירה</span>
               </span>
-              <span className="srow__go" aria-hidden="true">↗</span>
+              <span className="srow__go" aria-hidden="true">←</span>
             </a>
           </section>
 

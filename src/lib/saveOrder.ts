@@ -13,8 +13,18 @@ export interface SaveResult {
  * order_lines + order_line_options + order_line_parts; otherwise it logs the
  * payload locally so the entry flow is fully testable before the DB exists.
  */
+/** A row was rejected because the delivery_fee column isn't in the DB yet. */
+function isMissingDeliveryFeeColumn(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return (
+    error.code === '42703' || // Postgres: undefined_column
+    error.code === 'PGRST204' || // PostgREST: column not found in schema cache
+    (error.message?.includes('delivery_fee') ?? false)
+  );
+}
+
 export async function saveOrder(state: OrderState, orderNumber: number): Promise<SaveResult> {
-  const { subtotal, discount, total } = orderTotals(state.lines, state.discounts);
+  const { subtotal, discount, total } = orderTotals(state.lines, state.discounts, state.deliveryFee);
 
   if (!isSupabaseEnabled || !supabase) {
     // eslint-disable-next-line no-console
@@ -35,6 +45,7 @@ export async function saveOrder(state: OrderState, orderNumber: number): Promise
     subtotal,
     discount,
     total,
+    delivery_fee: state.deliveryFee,
     note: state.note || null,
     // KitchenOrder snapshot — the kitchen board and reports render these
     // directly off the row, pushed whole over realtime.
@@ -42,11 +53,23 @@ export async function saveOrder(state: OrderState, orderNumber: number): Promise
     discounts: state.discounts.length ? state.discounts : null,
   };
 
-  const insert = () => db.from('orders').insert(row).select('id, daily_number').single();
-  let { data: order, error } = await insert();
+  const insert = (payload: object) => db.from('orders').insert(payload).select('id, daily_number').single();
+  let payload: object = row;
+  let { data: order, error } = await insert(payload);
+
+  // Older DB without the delivery_fee column yet (migration not applied) — drop
+  // the column and retry so sending never breaks. The fee is already folded
+  // into `total`, so the money saved stays correct either way.
+  if (isMissingDeliveryFeeColumn(error)) {
+    const rest = { ...row } as Partial<typeof row>;
+    delete rest.delivery_fee;
+    payload = rest;
+    ({ data: order, error } = await insert(payload));
+  }
+
   if (error?.code === '23505') {
     // two devices raced for the same daily_number — the trigger recomputes on retry
-    ({ data: order, error } = await insert());
+    ({ data: order, error } = await insert(payload));
   }
 
   if (error || !order) {

@@ -62,8 +62,8 @@ describe('computeUnitPrice()', () => {
     const parts: LinePart[] = [
       {
         target: 'half_1',
-        baseProductId: 'p_vino',
-        baseName: 'וינו וינו',
+        baseProductId: 'b_family', // build-your-own base (no base toppings) → full 3-free allowance
+        baseName: 'משפחתית בהרכבה',
         toppings: [
           add('t_mushroom', 'פטריות', 500),
           add('t_onion', 'בצל', 500),
@@ -75,6 +75,25 @@ describe('computeUnitPrice()', () => {
     ];
     const l = line({ productId: 'b_family', isSplit: true, parts });
     expect(computeUnitPrice(l)).toBe(6900 + 500);
+  });
+
+  it('charges every added topping when the base already includes its toppings', () => {
+    // A preset pie (p_vino: 3 base toppings, included 3) has no free extras —
+    // its price already covers the base, so all 3 additions are charged.
+    const parts: LinePart[] = [
+      {
+        target: 'whole',
+        baseProductId: 'p_vino',
+        baseName: 'וינו וינו',
+        toppings: [
+          add('t_mushroom', 'פטריות', 500),
+          add('t_onion', 'בצל', 500),
+          add('t_corn', 'תירס', 500),
+        ],
+      },
+    ];
+    const l = line({ productId: 'p_vino', parts });
+    expect(computeUnitPrice(l)).toBe(9500 + 1500);
   });
 });
 

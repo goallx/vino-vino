@@ -68,10 +68,13 @@ export function PizzaBuilder({ product, editing, onCancel, onConfirm }: BuilderP
     setActive({ baseProductId: id, selected: [...artOf(id)] });
   }
 
-  // toppings that are extras (not part of the base) — these are what gets charged
+  // toppings that are extras (not part of the base) — these are what gets charged.
+  // The base toppings are already in the price, so they consume the free
+  // allowance first: only `included − baseCount` further toppings stay free.
   const defaults = artOf(active.baseProductId);
+  const freeExtra = Math.max(0, included - defaults.length);
   const extras = active.selected.filter((id) => !defaults.includes(id));
-  const usedExtra = Math.max(0, extras.length - included);
+  const usedExtra = Math.max(0, extras.length - freeExtra);
 
   function buildParts(): LinePart[] {
     const part = (state: HalfState, target: Target): LinePart => {
@@ -105,10 +108,10 @@ export function PizzaBuilder({ product, editing, onCancel, onConfirm }: BuilderP
         role="dialog"
         aria-label={`בניית ${product.name}`}
         onClick={(e) => e.stopPropagation()}
-        initial={{ opacity: 0, scale: 0.95, y: 14 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.96, y: 8 }}
-        transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.12, ease: 'easeOut' }}
       >
         <header className="builder__head">
           <div>
@@ -130,8 +133,6 @@ export function PizzaBuilder({ product, editing, onCancel, onConfirm }: BuilderP
               right={h2.selected}
               focus={isSplit ? activeHalf : undefined}
               size={280}
-              animate
-              idle
             />
             <input className="note-input" placeholder="הערה (בלי בצל, דק…)" value={note} onChange={(e) => setNote(e.target.value)} />
           </div>
@@ -170,7 +171,7 @@ export function PizzaBuilder({ product, editing, onCancel, onConfirm }: BuilderP
                 const on = active.selected.includes(t.id);
                 const isDefault = defaults.includes(t.id);
                 const extraIdx = extras.indexOf(t.id);
-                const charged = on && !isDefault && extraIdx >= included;
+                const charged = on && !isDefault && extraIdx >= freeExtra;
                 return (
                   <motion.button
                     key={t.id}
@@ -188,7 +189,13 @@ export function PizzaBuilder({ product, editing, onCancel, onConfirm }: BuilderP
               })}
             </div>
 
-            <p className="picker__hint">{included} תוספות נוספות כלולות{usedExtra > 0 ? ` · ${usedExtra} בתשלום` : ''}</p>
+            <p className="picker__hint">
+              {freeExtra > 0
+                ? `${freeExtra} תוספות נוספות כלולות${usedExtra > 0 ? ` · ${usedExtra} בתשלום` : ''}`
+                : usedExtra > 0
+                  ? `${usedExtra} תוספות בתשלום`
+                  : 'כל תוספת נוספת בתשלום'}
+            </p>
           </div>
         </div>
 

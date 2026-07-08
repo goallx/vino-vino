@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Menu } from './components/Menu';
 import { Wordmark } from './components/Wordmark';
 import { Ticket } from './components/Ticket';
+import { Checkout } from './components/Checkout';
 import { PizzaBuilder } from './components/PizzaBuilder';
 import { SettingsModal } from './components/SettingsModal';
 import { useOrder, clearDraft } from './state/order';
@@ -41,6 +42,9 @@ export default function App({ username, onSignOut }: AppProps = {}) {
   const [toast, setToast] = useState<Toast | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sending, setSending] = useState(false);
+  // 'build' = menu + ticket; 'checkout' = full-width customer step (no modal —
+  // it sits clear of the tablet keyboard). Send/new-order return to 'build'.
+  const [phase, setPhase] = useState<'build' | 'checkout'>('build');
   const undoRef = useRef<UndoState | null>(null);
 
   // The chit number mirrors the DB's daily_number (max of today's orders + 1)
@@ -158,6 +162,7 @@ export default function App({ username, onSignOut }: AppProps = {}) {
     clearDraft();
     dispatch({ kind: 'reset' });
     setDismissedMatch(false);
+    setPhase('build');
   }
 
   async function send() {
@@ -182,12 +187,14 @@ export default function App({ username, onSignOut }: AppProps = {}) {
         note: state.note || undefined,
         lines: state.lines,
         discounts: state.discounts.length ? state.discounts : undefined,
+        deliveryFee: state.deliveryFee || undefined,
       });
       // remember the customer by phone for next time
       recordOrder({ phone: state.phone, name: state.name, address: state.address, lines: state.lines, total });
       clearDraft();
       dispatch({ kind: 'reset' });
       setDismissedMatch(false);
+      setPhase('build');
       flash(`הזמנה #${String(result.orderNumber).padStart(2, '0')} נשלחה למטבח`);
     } finally {
       setSending(false);
@@ -199,39 +206,56 @@ export default function App({ username, onSignOut }: AppProps = {}) {
       <header className="topbar">
         <Wordmark className="brand" />
         <span className="topbar__sub">קבלת הזמנות</span>
-        <a className="topbar__link topbar__link--push" href="/kitchen" target="_blank" rel="noreferrer">
-          מסך מטבח ↗
+        <a className="topbar__link topbar__link--push" href="/kitchen">
+          מסך מטבח
         </a>
         <button className="topbar__link" onClick={() => setSettingsOpen(true)}>
           ⚙ הגדרות
         </button>
       </header>
 
-      <main className="stage">
-        <Menu onAddProduct={addProduct} onOpenBuilder={(p) => setBuilder({ product: p })} onApplyBundle={applyBundle} />
-        <Ticket
-          state={state}
-          setField={(field, value) => dispatch({ kind: 'setField', field, value })}
-          setQty={(id, qty) => dispatch({ kind: 'setQty', id, qty })}
-          subtotal={subtotal}
-          discountTotal={discountTotal}
-          total={total}
-          onRemoveDiscount={(uid) => dispatch({ kind: 'removeDiscount', uid })}
-          orderNumber={orderNumber}
-          onEditLine={(l) => setBuilder({ product: { id: l.productId } as Product, editing: l })}
-          onRemoveLine={removeLine}
-          onSend={send}
-          onNewOrder={newOrder}
-          match={match}
-          onClonePast={clonePast}
-          onDismissMatch={() => setDismissedMatch(true)}
-          suggestions={suggestions}
-          onPickCustomer={pickCustomer}
-          addressSuggestions={addressSuggestions}
-          onPickAddress={(address) => dispatch({ kind: 'setField', field: 'address', value: address })}
-          canSend={state.lines.length > 0}
-          sending={sending}
-        />
+      <main className={`stage ${phase === 'checkout' ? 'stage--checkout' : ''}`}>
+        {phase === 'build' ? (
+          <>
+            <Menu onAddProduct={addProduct} onOpenBuilder={(p) => setBuilder({ product: p })} onApplyBundle={applyBundle} />
+            <Ticket
+              state={state}
+              setQty={(id, qty) => dispatch({ kind: 'setQty', id, qty })}
+              subtotal={subtotal}
+              discountTotal={discountTotal}
+              total={total}
+              onRemoveDiscount={(uid) => dispatch({ kind: 'removeDiscount', uid })}
+              orderNumber={orderNumber}
+              onEditLine={(l) => setBuilder({ product: { id: l.productId } as Product, editing: l })}
+              onRemoveLine={removeLine}
+              onContinue={() => setPhase('checkout')}
+              onReturningCustomer={() => setPhase('checkout')}
+              onNewOrder={newOrder}
+              canContinue={state.lines.length > 0}
+            />
+          </>
+        ) : (
+          <Checkout
+            state={state}
+            setField={(field, value) => dispatch({ kind: 'setField', field, value })}
+            subtotal={subtotal}
+            discountTotal={discountTotal}
+            total={total}
+            orderNumber={orderNumber}
+            onBack={() => setPhase('build')}
+            onSend={send}
+            onSetDeliveryFee={(fee) => dispatch({ kind: 'setDeliveryFee', fee })}
+            canSend={state.lines.length > 0}
+            sending={sending}
+            match={match}
+            onClonePast={clonePast}
+            onDismissMatch={() => setDismissedMatch(true)}
+            suggestions={suggestions}
+            onPickCustomer={pickCustomer}
+            addressSuggestions={addressSuggestions}
+            onPickAddress={(address) => dispatch({ kind: 'setField', field: 'address', value: address })}
+          />
+        )}
       </main>
 
       <AnimatePresence>

@@ -1,5 +1,5 @@
 import { useEffect, useReducer } from 'react';
-import type { AppliedBundle, CartLine, OrderType, PaymentStatus } from '../types';
+import type { AppliedBundle, CartLine, Money, OrderType, PaymentStatus } from '../types';
 import { orderTotals } from '../lib/cart';
 
 export interface OrderState {
@@ -12,6 +12,7 @@ export interface OrderState {
   name: string;
   address: string;
   note: string;
+  deliveryFee: Money; // agorot; delivery only, 0 for pickup
 }
 
 export const emptyOrder: OrderState = {
@@ -24,6 +25,7 @@ export const emptyOrder: OrderState = {
   name: '',
   address: '',
   note: '',
+  deliveryFee: 0,
 };
 
 export type Action =
@@ -35,6 +37,7 @@ export type Action =
   | { kind: 'applyBundle'; lines: CartLine[]; discount: AppliedBundle }
   | { kind: 'removeDiscount'; uid: string }
   | { kind: 'setField'; field: keyof OrderState; value: string }
+  | { kind: 'setDeliveryFee'; fee: Money }
   | { kind: 'loadLines'; lines: CartLine[] }
   | { kind: 'reset' };
 
@@ -80,8 +83,14 @@ export function reducer(state: OrderState, action: Action): OrderState {
       };
     case 'removeDiscount':
       return { ...state, discounts: state.discounts.filter((d) => d.uid !== action.uid) };
-    case 'setField':
-      return { ...state, [action.field]: action.value };
+    case 'setField': {
+      const next = { ...state, [action.field]: action.value };
+      // A delivery fee only makes sense on delivery orders — drop it on pickup.
+      if (action.field === 'type' && action.value !== 'delivery') next.deliveryFee = 0;
+      return next;
+    }
+    case 'setDeliveryFee':
+      return { ...state, deliveryFee: action.fee };
     case 'loadLines':
       return { ...state, lines: action.lines };
     case 'reset':
@@ -118,7 +127,7 @@ export function useOrder() {
     return () => clearTimeout(id);
   }, [state]);
 
-  const { subtotal, discount: discountTotal, total } = orderTotals(state.lines, state.discounts);
+  const { subtotal, discount: discountTotal, total } = orderTotals(state.lines, state.discounts, state.deliveryFee);
 
   return { state, dispatch, subtotal, discountTotal, total };
 }

@@ -64,8 +64,8 @@ export function Deals({ onSignOut }: DealsProps) {
           ) : (
             <button className="dtop__new" onClick={() => setEditingTopping(blankTopping())}>+ תוספת חדשה</button>
           )}
-          <a href="/">קבלת הזמנות ↗</a>
-          <a href="/reports">דוח יומי ↗</a>
+          <a href="/">קבלת הזמנות ←</a>
+          <a href="/reports">דוח יומי ←</a>
           {onSignOut && <button onClick={onSignOut}>יציאה</button>}
         </nav>
       </header>
