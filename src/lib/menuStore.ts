@@ -168,6 +168,10 @@ if (isSupabaseEnabled && supabase) {
     .channel('products-feed')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => void fetchCatalog())
     .subscribe();
+  supabase
+    .channel('toppings-feed')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'toppings' }, () => void fetchCatalog())
+    .subscribe();
 } else if (typeof window !== 'undefined') {
   // Another tab (e.g. the /deals admin) edited the menu — pick it up live.
   window.addEventListener('storage', (e) => {
@@ -227,6 +231,48 @@ export function removeProduct(id: string): void {
 
 export function newProductId(): string {
   return `c_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+}
+
+/** Upsert a topping by id (keeps list order for edits, appends new items). */
+export function saveTopping(topping: Topping): void {
+  const list = [...toppings];
+  const at = list.findIndex((t) => t.id === topping.id);
+  if (at >= 0) list[at] = topping;
+  else list.push(topping);
+  persist(TOPPINGS_KEY, list);
+  replaceInPlace(toppings, list);
+  for (const k of Object.keys(toppingsById)) delete toppingsById[k];
+  for (const t of toppings) toppingsById[t.id] = t;
+  bump();
+  if (supabase) {
+    void supabase
+      .from('toppings')
+      .upsert(topping)
+      .then(({ error }) => {
+        if (error) console.error('[vino] failed to save topping', error);
+      });
+  }
+}
+
+export function removeTopping(id: string): void {
+  const list = toppings.filter((t) => t.id !== id);
+  persist(TOPPINGS_KEY, list);
+  replaceInPlace(toppings, list);
+  delete toppingsById[id];
+  bump();
+  if (supabase) {
+    void supabase
+      .from('toppings')
+      .delete()
+      .eq('id', id)
+      .then(({ error }) => {
+        if (error) console.error('[vino] failed to remove topping', error);
+      });
+  }
+}
+
+export function newToppingId(): string {
+  return `t_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
 }
 
 /** Test/dev helper — re-read the caches (e.g. after (re)seeding localStorage). */

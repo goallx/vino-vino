@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { Product } from '../types';
-import { categories, newProductId, products, removeProduct, saveProduct } from '../lib/menuStore';
+import { categories, newProductId, products, removeProduct, saveProduct, toppings } from '../lib/menuStore';
 import { uploadProductPhoto, removeProductPhoto } from '../lib/photos';
 import { shekels } from '../lib/money';
 import { DishMedia } from '../components/DishMedia';
@@ -202,6 +202,26 @@ function ProductEditor({ initial, onCancel, onSave }: ProductEditorProps) {
               <button className={!draft.isPizza ? 'is-active' : ''} onClick={() => setDraft({ ...draft, isPizza: undefined })}>מנה רגילה</button>
             </div>
           </div>
+
+          {draft.isPizza && (
+            <label className="dfield">
+              <span>תוספות בבסיס (מה כלול בפיצה כברירת מחדל)</span>
+              <select
+                multiple
+                className="dselect dselect--multi"
+                size={Math.min(8, Math.max(4, toppings.length))}
+                value={draft.art ?? []}
+                onChange={(e) => {
+                  const ids = Array.from(e.target.selectedOptions).map((o) => o.value);
+                  setDraft({ ...draft, art: ids });
+                }}
+              >
+                {toppings.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </label>
+          )}
 
           <div className="dactive">
             <span className="dfield"><span>זמינות</span></span>

@@ -101,4 +101,34 @@ describe('menu CRUD', () => {
     expect(saved.splitCapable).toBe(true);
     expect(saved.includedToppings).toBe(3);
   });
+
+  it('lets you pick base toppings for a pizza via the multi-select', async () => {
+    const user = userEvent.setup();
+    render(<Deals />);
+    await user.click(screen.getByRole('tab', { name: 'תפריט' }));
+    await user.click(screen.getByText('+ פריט חדש'));
+
+    const dialog = screen.getByRole('dialog', { name: 'עריכת פריט' });
+    await user.type(within(dialog).getByPlaceholderText('לדוגמה: פיצה מרגריטה'), 'פטריות ובצל');
+    await user.type(within(dialog).getByPlaceholderText('0'), '55');
+    await user.click(within(dialog).getByText('פיצה 🍕'));
+
+    const select = within(dialog).getByLabelText('תוספות בבסיס (מה כלול בפיצה כברירת מחדל)') as HTMLSelectElement;
+    await user.selectOptions(select, ['t_mushroom', 't_onion']);
+
+    await user.click(within(dialog).getByText('שמור פריט'));
+
+    const saved = JSON.parse(localStorage.getItem('vino:menu')!).find(
+      (p: { name: string }) => p.name === 'פטריות ובצל',
+    );
+    expect(saved.art).toEqual(['t_mushroom', 't_onion']);
+
+    // reopening the editor shows the saved selection
+    const card = screen.getByText('פטריות ובצל').closest('.mcard') as HTMLElement;
+    await user.click(within(card).getByText('עריכה'));
+    const reopened = screen.getByRole('dialog', { name: 'עריכת פריט' });
+    const reopenedSelect = within(reopened).getByLabelText('תוספות בבסיס (מה כלול בפיצה כברירת מחדל)') as HTMLSelectElement;
+    const selected = Array.from(reopenedSelect.selectedOptions).map((o) => o.value);
+    expect(selected).toEqual(['t_mushroom', 't_onion']);
+  });
 });

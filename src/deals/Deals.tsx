@@ -1,17 +1,18 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import type { Bundle, Product } from '../types';
+import type { Bundle, Product, Topping } from '../types';
 import { categories, products, productsById } from '../lib/menuStore';
 import { shekels } from '../lib/money';
 import { Wordmark } from '../components/Wordmark';
 import { bundleGross, bundleSaving, loadBundles, newBundleId, removeBundle, saveBundle, subscribeBundles } from '../lib/bundles';
 import { blankProduct, MenuAdmin } from './MenuAdmin';
+import { blankTopping, ToppingsAdmin } from './ToppingsAdmin';
 
 interface DealsProps {
   onSignOut?: () => void;
 }
 
-type Tab = 'deals' | 'menu';
+type Tab = 'deals' | 'menu' | 'toppings';
 
 function blankBundle(): Bundle {
   return { id: newBundleId(), name: '', items: [], price: 0, active: true };
@@ -23,6 +24,7 @@ export function Deals({ onSignOut }: DealsProps) {
   const [bundles, setBundles] = useState<Bundle[]>(() => loadBundles());
   const [editing, setEditing] = useState<Bundle | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [editingTopping, setEditingTopping] = useState<Topping | null>(null);
 
   // The store may refresh from the DB after mount (or another device edits).
   useEffect(() => subscribeBundles(() => setBundles(loadBundles())), []);
@@ -52,12 +54,15 @@ export function Deals({ onSignOut }: DealsProps) {
         <div className="dtabs" role="tablist" aria-label="ניהול">
           <button role="tab" aria-selected={tab === 'deals'} className={tab === 'deals' ? 'is-active' : ''} onClick={() => setTab('deals')}>מבצעים</button>
           <button role="tab" aria-selected={tab === 'menu'} className={tab === 'menu' ? 'is-active' : ''} onClick={() => setTab('menu')}>תפריט</button>
+          <button role="tab" aria-selected={tab === 'toppings'} className={tab === 'toppings' ? 'is-active' : ''} onClick={() => setTab('toppings')}>תוספות</button>
         </div>
         <nav className="dtop__nav">
           {tab === 'deals' ? (
             <button className="dtop__new" onClick={() => setEditing(blankBundle())}>+ מבצע חדש</button>
-          ) : (
+          ) : tab === 'menu' ? (
             <button className="dtop__new" onClick={() => setEditingProduct(blankProduct())}>+ פריט חדש</button>
+          ) : (
+            <button className="dtop__new" onClick={() => setEditingTopping(blankTopping())}>+ תוספת חדשה</button>
           )}
           <a href="/">קבלת הזמנות ↗</a>
           <a href="/reports">דוח יומי ↗</a>
@@ -68,6 +73,8 @@ export function Deals({ onSignOut }: DealsProps) {
       <main className="dbody">
         {tab === 'menu' ? (
           <MenuAdmin editing={editingProduct} onEdit={setEditingProduct} />
+        ) : tab === 'toppings' ? (
+          <ToppingsAdmin editing={editingTopping} onEdit={setEditingTopping} />
         ) : bundles.length === 0 ? (
           <div className="dempty">
             <p>עדיין אין מבצעים. צרו מבצע כדי שיופיע במסך קבלת ההזמנות.</p>

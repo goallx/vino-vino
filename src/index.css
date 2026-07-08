@@ -1038,12 +1038,18 @@ input, select { font-family: inherit; }
 }
 .mcard__actions { margin: 0; }
 
+/* toppings admin — same card, no thumbnail */
+.tcard .mcard__head { padding: 14px; }
+
 /* category select in the item editor — match the text inputs */
 .dselect {
   padding: 12px 14px; border-radius: var(--r-sm); font-size: 16px;
   border: 1.5px solid var(--line-strong); background: var(--paper-2); color: var(--ink);
 }
 .dselect:focus { border-color: var(--vino); background: #fff; outline: none; }
+.dselect--multi { padding: 6px; }
+.dselect--multi option { padding: 9px 10px; border-radius: 6px; }
+.dselect--multi option:checked { background: var(--chit); color: var(--vino); }
 
 /* editor overlay */
 .deditor {
