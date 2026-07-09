@@ -16,9 +16,11 @@ interface BuilderProps {
 
 // `selected` holds the FULL set of toppings on the pizza, initialised to the
 // base pizza's standard toppings — so the list always matches the illustration.
+// `extra` is the subset served double (כפול), billed as a second portion.
 interface HalfState {
   baseProductId: string;
   selected: string[];
+  extra: string[];
 }
 
 const artOf = (pid: string) => productsById[pid]?.art ?? [];
@@ -26,18 +28,32 @@ const artOf = (pid: string) => productsById[pid]?.art ?? [];
 function halfFromPart(part: LinePart | undefined, fallbackBase: string): HalfState {
   const base = part?.baseProductId ?? fallbackBase;
   const defaults = artOf(base);
-  if (!part) return { baseProductId: base, selected: [...defaults] };
-  const adds = part.toppings.filter((t) => t.action === 'add').map((t) => t.toppingId);
+  if (!part) return { baseProductId: base, selected: [...defaults], extra: [] };
   const removed = new Set(part.toppings.filter((t) => t.action === 'remove').map((t) => t.toppingId));
-  return { baseProductId: base, selected: [...defaults.filter((id) => !removed.has(id)), ...adds] };
+  const selected = [...defaults.filter((id) => !removed.has(id))];
+  const extra: string[] = [];
+  for (const t of part.toppings) {
+    if (t.action !== 'add') continue;
+    if (!selected.includes(t.toppingId)) selected.push(t.toppingId);
+    if ((t.qty ?? 1) > 1 && !extra.includes(t.toppingId)) extra.push(t.toppingId);
+  }
+  return { baseProductId: base, selected, extra };
 }
 
 /** Diff a part's current toppings against its base defaults → add/remove ops. */
-function partToppings(base: string, selected: string[]): ToppingSel[] {
+function partToppings(base: string, selected: string[], extra: string[]): ToppingSel[] {
   const defaults = artOf(base);
   const adds = selected
-    .filter((id) => !defaults.includes(id) && toppingsById[id])
-    .map((id) => ({ toppingId: id, name: toppingsById[id].name, action: 'add' as const, price: toppingsById[id].price }));
+    .filter((id) => (!defaults.includes(id) || extra.includes(id)) && toppingsById[id])
+    .map((id) => ({
+      toppingId: id,
+      name: toppingsById[id].name,
+      action: 'add' as const,
+      price: toppingsById[id].price,
+      // A doubled base topping bills only its extra portion (qty 1); a doubled
+      // non-base topping bills both portions (qty 2).
+      qty: extra.includes(id) ? (defaults.includes(id) ? 1 : 2) : 1,
+    }));
   const removed = defaults
     .filter((id) => !selected.includes(id) && toppingsById[id])
     .map((id) => ({ toppingId: id, name: toppingsById[id].name, action: 'remove' as const, price: 0 }));
@@ -57,15 +73,21 @@ export function PizzaBuilder({ product, editing, onCancel, onConfirm }: BuilderP
   const active = !isSplit ? whole : activeHalf === 'half_1' ? h1 : h2;
   const setActive = !isSplit ? setWhole : activeHalf === 'half_1' ? setH1 : setH2;
 
-  function toggleTopping(id: string) {
-    setActive({
-      ...active,
-      selected: active.selected.includes(id) ? active.selected.filter((t) => t !== id) : [...active.selected, id],
-    });
+  // Cycle a topping: off → on (×1) → extra (×2, כפול) → off.
+  function cycleTopping(id: string) {
+    const on = active.selected.includes(id);
+    const isExtra = active.extra.includes(id);
+    if (!on) {
+      setActive({ ...active, selected: [...active.selected, id] });
+    } else if (!isExtra) {
+      setActive({ ...active, extra: [...active.extra, id] });
+    } else {
+      setActive({ ...active, selected: active.selected.filter((t) => t !== id), extra: active.extra.filter((t) => t !== id) });
+    }
   }
 
   function chooseBase(id: string) {
-    setActive({ baseProductId: id, selected: [...artOf(id)] });
+    setActive({ baseProductId: id, selected: [...artOf(id)], extra: [] });
   }
 
   // toppings that are extras (not part of the base) — these are what gets charged.
@@ -79,7 +101,7 @@ export function PizzaBuilder({ product, editing, onCancel, onConfirm }: BuilderP
   function buildParts(): LinePart[] {
     const part = (state: HalfState, target: Target): LinePart => {
       const base = pizzaProducts.find((p) => p.id === state.baseProductId) ?? product;
-      return { target, baseProductId: base.id, baseName: base.name, toppings: partToppings(base.id, state.selected) };
+      return { target, baseProductId: base.id, baseName: base.name, toppings: partToppings(base.id, state.selected, state.extra) };
     };
     return isSplit ? [part(h1, 'half_1'), part(h2, 'half_2')] : [part(whole, 'whole')];
   }
@@ -169,21 +191,26 @@ export function PizzaBuilder({ product, editing, onCancel, onConfirm }: BuilderP
             <div className="toplist" role="list">
               {toppings.map((t) => {
                 const on = active.selected.includes(t.id);
+                const isExtra = active.extra.includes(t.id);
                 const isDefault = defaults.includes(t.id);
                 const extraIdx = extras.indexOf(t.id);
-                const charged = on && !isDefault && extraIdx >= freeExtra;
+                const charged = (on && !isDefault && extraIdx >= freeExtra) || isExtra;
                 return (
                   <motion.button
                     key={t.id}
                     role="listitem"
-                    className={`toprow ${on ? 'is-on' : ''}`}
-                    onClick={() => toggleTopping(t.id)}
+                    className={`toprow ${on ? 'is-on' : ''} ${isExtra ? 'is-extra' : ''}`}
+                    onClick={() => cycleTopping(t.id)}
                     whileTap={{ scale: 0.98 }}
                   >
                     <span className="toprow__icon"><ToppingIcon id={t.id} size={22} /></span>
-                    <span className="toprow__name">{t.name}{isDefault && on && <span className="toprow__base"> · בסיס</span>}</span>
+                    <span className="toprow__name">
+                      {t.name}
+                      {isExtra && <span className="toprow__x2"> · כפול</span>}
+                      {isDefault && on && !isExtra && <span className="toprow__base"> · בסיס</span>}
+                    </span>
                     {charged && <span className="toprow__price">+{shekels(t.price)}</span>}
-                    <span className="toprow__check">{on ? '✓' : '+'}</span>
+                    <span className="toprow__check">{isExtra ? '×2' : on ? '✓' : '+'}</span>
                   </motion.button>
                 );
               })}
@@ -196,6 +223,7 @@ export function PizzaBuilder({ product, editing, onCancel, onConfirm }: BuilderP
                   ? `${usedExtra} תוספות בתשלום`
                   : 'כל תוספת נוספת בתשלום'}
             </p>
+            <p className="picker__tip">הקשה נוספת על תוספת = כפול ×2</p>
           </div>
         </div>
 

@@ -16,8 +16,14 @@ export function newLineId(): string {
 function partExtraCost(part: LinePart, included: number): Money {
   const baseCount = productsById[part.baseProductId]?.art?.length ?? 0;
   const freeAdded = Math.max(0, included - baseCount);
-  const added = part.toppings.filter((t) => t.action === 'add');
-  return added.slice(freeAdded).reduce((sum, t) => sum + t.price, 0);
+  // Expand each add to its portions (extra = 2) so a doubled topping bills the
+  // second portion; the free allowance covers the first `freeAdded` portions.
+  const portions: Money[] = [];
+  for (const t of part.toppings) {
+    if (t.action !== 'add') continue;
+    for (let i = 0; i < (t.qty ?? 1); i += 1) portions.push(t.price);
+  }
+  return portions.slice(freeAdded).reduce((sum, p) => sum + p, 0);
 }
 
 export function computeUnitPrice(line: CartLine): Money {
@@ -79,7 +85,9 @@ export function wholePart(product: Product): LinePart {
 }
 
 function partToppingText(part: LinePart): string {
-  const adds = part.toppings.filter((t) => t.action === 'add').map((t) => `+${t.name}`);
+  const adds = part.toppings
+    .filter((t) => t.action === 'add')
+    .map((t) => `+${t.name}${(t.qty ?? 1) > 1 ? ' ×2' : ''}`);
   const removes = part.toppings.filter((t) => t.action === 'remove').map((t) => `−${t.name}`);
   return [...adds, ...removes].join(' ');
 }

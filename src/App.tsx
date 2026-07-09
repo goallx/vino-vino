@@ -7,9 +7,8 @@ import { Checkout } from './components/Checkout';
 import { PizzaBuilder } from './components/PizzaBuilder';
 import { SettingsModal } from './components/SettingsModal';
 import { useOrder, clearDraft } from './state/order';
-import type { Bundle, CartLine, PastOrder, Product, Variant } from './types';
+import type { CartLine, PastOrder, Product, Variant } from './types';
 import { computeUnitPrice, newLineId, wholePart } from './lib/cart';
-import { bundleApplication } from './lib/bundles';
 import { getByPhone, searchByPhonePrefix, searchByAddress, recordOrder, type StoredCustomer } from './lib/customers';
 import { productsById } from './lib/menuStore';
 import { saveOrder } from './lib/saveOrder';
@@ -107,13 +106,6 @@ export default function App({ username, onSignOut }: AppProps = {}) {
     flash(`${product.name} נוסף`);
   }
 
-  function applyBundle(bundle: Bundle) {
-    const { lines, discount } = bundleApplication(bundle);
-    if (lines.length === 0) return;
-    dispatch({ kind: 'applyBundle', lines, discount });
-    flash(`מבצע ${bundle.name} נוסף`);
-  }
-
   function confirmBuilder(line: CartLine) {
     if (builder?.editing) {
       dispatch({ kind: 'updateLine', line });
@@ -149,6 +141,15 @@ export default function App({ username, onSignOut }: AppProps = {}) {
     }
     setMatch(null);
     flash('ההזמנה שוכפלה');
+  }
+
+  // Returning-customer row tap: fill their name/address without touching the
+  // order lines (a fresh order for a known customer). Cloning stays on שכפל.
+  function useMatchedCustomer() {
+    const rec = getByPhone(state.phone);
+    if (!rec) return;
+    dispatch({ kind: 'setField', field: 'name', value: rec.name ?? '' });
+    dispatch({ kind: 'setField', field: 'address', value: rec.address ?? '' });
   }
 
   function pickCustomer(c: StoredCustomer) {
@@ -217,7 +218,7 @@ export default function App({ username, onSignOut }: AppProps = {}) {
       <main className={`stage ${phase === 'checkout' ? 'stage--checkout' : ''}`}>
         {phase === 'build' ? (
           <>
-            <Menu onAddProduct={addProduct} onOpenBuilder={(p) => setBuilder({ product: p })} onApplyBundle={applyBundle} />
+            <Menu onAddProduct={addProduct} onOpenBuilder={(p) => setBuilder({ product: p })} />
             <Ticket
               state={state}
               setQty={(id, qty) => dispatch({ kind: 'setQty', id, qty })}
@@ -249,6 +250,7 @@ export default function App({ username, onSignOut }: AppProps = {}) {
             sending={sending}
             match={match}
             onClonePast={clonePast}
+            onUseMatchedCustomer={useMatchedCustomer}
             onDismissMatch={() => setDismissedMatch(true)}
             suggestions={suggestions}
             onPickCustomer={pickCustomer}

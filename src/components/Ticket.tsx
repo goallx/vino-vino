@@ -47,21 +47,23 @@ export function Ticket(props: TicketProps) {
           const summary = lineSummary(l);
           return (
             <div key={l.id} className="line" role="listitem">
-              <DishThumb productId={l.productId} size={46} />
-              <div className="line__main">
-                <span className="line__name">{l.name}</span>
-                {summary && <span className="line__sub">{summary}</span>}
-                {l.note && <span className="line__note">“{l.note}”</span>}
-              </div>
-              <div className="line__side">
+              <div className="line__top">
+                <DishThumb productId={l.productId} size={46} />
+                <div className="line__main">
+                  <span className="line__name">{l.name}</span>
+                  {summary && <span className="line__sub">{summary}</span>}
+                  {l.note && <span className="line__note">“{l.note}”</span>}
+                </div>
                 <span className="line__price">{shekels(computeUnitPrice(l) * l.qty)}</span>
+              </div>
+              <div className="line__ctrl">
                 <div className="stepper">
                   <button onClick={() => setQty(l.id, l.qty - 1)} aria-label="הפחת">−</button>
                   <span key={l.qty} className="stepper__qty">{l.qty}</span>
                   <button onClick={() => setQty(l.id, l.qty + 1)} aria-label="הוסף">+</button>
                 </div>
                 <div className="line__tools">
-                  <button onClick={() => props.onEditLine(l)} aria-label="ערוך">✎</button>
+                  <button onClick={() => props.onEditLine(l)} aria-label="ערוך">✎ עריכה</button>
                   <button onClick={() => props.onRemoveLine(l)} aria-label="מחק">🗑</button>
                 </div>
               </div>

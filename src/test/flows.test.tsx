@@ -114,42 +114,6 @@ describe('build a half / half pizza', () => {
   });
 });
 
-describe('bundle deals', () => {
-  it('applies a 2-pizza bundle at the deal price and splits it into editable lines', async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    await openCategory(user, 'מבצעים');
-    await user.click(screen.getByText('זוג משפחתיות', { selector: '.coupon__name' }).closest('.coupon') as HTMLElement);
-
-    // two independent pizza lines, deal row, and the net (₪190 − ₪30 = ₪160)
-    expect(within(ticket()).getAllByText('וינו וינו', { selector: '.line__name' })).toHaveLength(2);
-    expect(within(ticket()).getByText('זוג משפחתיות', { selector: '.disc__name' })).toBeInTheDocument();
-    expect(total()).toHaveTextContent('₪160');
-  });
-
-  it('raises the total when paid toppings are added to a bundle pizza, keeping the deal saving fixed', async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    await openCategory(user, 'מבצעים');
-    await user.click(screen.getByText('זוג משפחתיות', { selector: '.coupon__name' }).closest('.coupon') as HTMLElement);
-    expect(total()).toHaveTextContent('₪160');
-
-    // edit the first bundle pizza → builder. וינו's price already includes its
-    // 3 base toppings, so every one of these 4 additions is charged (+₪5 each).
-    await user.click(within(ticket()).getAllByRole('button', { name: 'ערוך' })[0]);
-    const dialog = screen.getByRole('dialog', { name: /בניית/ });
-    for (const t of ['פטריות', 'בצל', 'זיתים', 'תירס']) {
-      await user.click(within(dialog).getByText(t).closest('button') as HTMLButtonElement);
-    }
-    await user.click(within(dialog).getByRole('button', { name: /עדכן/ }));
-
-    // gross 190 + 4×5 = 210 − fixed deal saving 30 = 180
-    expect(total()).toHaveTextContent('₪180');
-    expect(within(ticket()).getByText('זוג משפחתיות', { selector: '.disc__name' })).toBeInTheDocument();
-    expect(within(ticket()).getByText('−₪30', { selector: '.disc__amount' })).toBeInTheDocument();
-  });
-});
-
 describe('quantity, merge and remove with undo', () => {
   it('merges identical taps into one line with higher quantity', async () => {
     const user = userEvent.setup();
@@ -221,6 +185,21 @@ describe('phone lookup → reorder', () => {
     const summary = screen.getByRole('complementary', { name: 'סיכום הזמנה' });
     expect(within(summary).getByText('שחיתות', { selector: '.csum__name' })).toBeInTheDocument();
     expect(screen.getByPlaceholderText('שם')).toHaveValue('דנה כהן');
+  });
+
+  it('fills only the customer details when the row is tapped, without cloning', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await goCheckout(user);
+    await user.type(screen.getByPlaceholderText('טלפון'), '0501234567');
+    expect(await screen.findByText(/הזמנות קודמות/)).toBeInTheDocument();
+
+    // tap the order row (not שכפל) → name filled, order stays empty
+    await user.click(screen.getByText(/שחיתות משפחתית/, { selector: '.reorder__summary' }).closest('button') as HTMLElement);
+
+    expect(screen.getByPlaceholderText('שם')).toHaveValue('דנה כהן');
+    const summary = screen.getByRole('complementary', { name: 'סיכום הזמנה' });
+    expect(within(summary).getByText('אין פריטים בהזמנה')).toBeInTheDocument();
   });
 });
 

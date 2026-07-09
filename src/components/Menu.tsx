@@ -1,36 +1,25 @@
 import { useState, useSyncExternalStore } from 'react';
-import type { Bundle, Product, Variant } from '../types';
-import { activeProducts, categories, menuVersion, productsById, subscribeMenu } from '../lib/menuStore';
+import type { Product, Variant } from '../types';
+import { activeProducts, categories, menuVersion, subscribeMenu } from '../lib/menuStore';
 import { shekels } from '../lib/money';
-import { bundleGross, bundleSaving, bundlesVersion, listActiveBundles, subscribeBundles } from '../lib/bundles';
 import { DishMedia } from './DishMedia';
 
 interface MenuProps {
   onAddProduct: (product: Product, variant?: Variant) => void;
   onOpenBuilder: (product: Product) => void;
-  onApplyBundle: (bundle: Bundle) => void;
 }
 
-const DEALS_CAT = 'deals';
-
-export function Menu({ onAddProduct, onOpenBuilder, onApplyBundle }: MenuProps) {
-  // Bundles are owner-managed in /deals; re-read when the store changes.
-  useSyncExternalStore(subscribeBundles, bundlesVersion);
-  const bundles = listActiveBundles();
-  const cats = bundles.length > 0 ? [{ id: DEALS_CAT, name: 'מבצעים' }, ...categories] : categories;
-
-  // The deals tab leads the list for prominence, but pizzas stay the default
-  // view. The catalog loads async, so the active tab is derived: the picked
-  // one if it still exists, else the first real category once data lands.
+export function Menu({ onAddProduct, onOpenBuilder }: MenuProps) {
   const [pickedCat, setActiveCat] = useState<string | null>(null);
   const [variantFor, setVariantFor] = useState<Product | null>(null);
 
-  // Re-render when the owner edits the menu (another tab's /deals admin).
+  // Re-render when the owner edits the menu (another tab's /deals admin). The
+  // catalog loads async, so the active tab is derived: the picked one if it
+  // still exists, else the first category once data lands.
   useSyncExternalStore(subscribeMenu, menuVersion);
   const activeCat =
-    pickedCat && cats.some((c) => c.id === pickedCat) ? pickedCat : (categories[0]?.id ?? '');
-  const onDeals = activeCat === DEALS_CAT;
-  const visible = onDeals ? [] : activeProducts().filter((p) => p.categoryId === activeCat);
+    pickedCat && categories.some((c) => c.id === pickedCat) ? pickedCat : (categories[0]?.id ?? '');
+  const visible = activeProducts().filter((p) => p.categoryId === activeCat);
 
   // Whole card → builder (pizzas) / popover (sized) / add (simple).
   function handleTap(product: Product) {
@@ -48,37 +37,18 @@ export function Menu({ onAddProduct, onOpenBuilder, onApplyBundle }: MenuProps) 
   return (
     <section className="menu" aria-label="תפריט">
       <nav className="cats" aria-label="קטגוריות">
-        {cats.map((c) => (
+        {categories.map((c) => (
           <button
             key={c.id}
-            className={`cat ${c.id === DEALS_CAT ? 'cat--deals' : ''} ${c.id === activeCat ? 'is-active' : ''}`}
+            className={`cat ${c.id === activeCat ? 'is-active' : ''}`}
             onClick={() => setActiveCat(c.id)}
           >
-            {c.id === DEALS_CAT && <span aria-hidden="true">★ </span>}
             {c.name}
           </button>
         ))}
       </nav>
 
-      <div className={`grid ${onDeals ? 'grid--deals' : ''}`} key={activeCat}>
-        {onDeals &&
-          bundles.map((b) => {
-            const saving = bundleSaving(b);
-            const items = b.items
-              .map((it) => `${it.qty}× ${productsById[it.productId]?.name ?? '—'}`)
-              .join(' + ');
-            return (
-              <button key={b.id} className="coupon" onClick={() => onApplyBundle(b)}>
-                <span className="coupon__perf" aria-hidden="true" />
-                <span className="coupon__name">{b.name}</span>
-                <span className="coupon__items">{items}</span>
-                <span className="coupon__foot">
-                  {saving > 0 && <span className="coupon__was">{shekels(bundleGross(b))}</span>}
-                  <span className="coupon__price">{shekels(b.price)}</span>
-                </span>
-              </button>
-            );
-          })}
+      <div className="grid" key={activeCat}>
         {visible.map((p) => (
           <div
             key={p.id}

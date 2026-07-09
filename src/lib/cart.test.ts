@@ -95,6 +95,20 @@ describe('computeUnitPrice()', () => {
     const l = line({ productId: 'p_vino', parts });
     expect(computeUnitPrice(l)).toBe(9500 + 1500);
   });
+
+  it('bills both portions of a doubled (extra) topping', () => {
+    // Preset pie (no free extras) + one topping served double → 2 portions charged.
+    const parts: LinePart[] = [
+      {
+        target: 'whole',
+        baseProductId: 'p_vino',
+        baseName: 'וינו וינו',
+        toppings: [{ toppingId: 't_mushroom', name: 'פטריות', action: 'add', price: 500, qty: 2 }],
+      },
+    ];
+    const l = line({ productId: 'p_vino', parts });
+    expect(computeUnitPrice(l)).toBe(9500 + 1000);
+  });
 });
 
 describe('lineSummary()', () => {

@@ -21,6 +21,7 @@ interface CheckoutProps {
   sending?: boolean;
   match: { name?: string; past: PastOrder[] } | null;
   onClonePast: (order: PastOrder) => void;
+  onUseMatchedCustomer: () => void;
   onDismissMatch: () => void;
   suggestions: StoredCustomer[];
   onPickCustomer: (c: StoredCustomer) => void;
@@ -76,6 +77,7 @@ export function Checkout(props: CheckoutProps) {
             <ReorderPanel
               customerName={props.match.name}
               past={props.match.past}
+              onUseCustomer={props.onUseMatchedCustomer}
               onClone={props.onClonePast}
               onDismiss={props.onDismissMatch}
             />

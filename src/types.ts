@@ -43,7 +43,8 @@ export interface ToppingSel {
   toppingId: string;
   name: string;
   action: 'add' | 'remove';
-  price: Money; // 0 for removals and for included adds
+  price: Money; // per-portion price; 0 for removals
+  qty?: number; // portions for an add: 1 = normal, 2 = extra (כפול). Absent = 1.
 }
 
 export interface LinePart {
