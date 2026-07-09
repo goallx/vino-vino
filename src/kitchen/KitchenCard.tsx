@@ -1,5 +1,3 @@
-import { forwardRef } from 'react';
-import { motion } from 'framer-motion';
 import type { KitchenOrder } from '../types';
 import { KitchenLine } from './KitchenLine';
 
@@ -16,11 +14,11 @@ function ageTier(minutes: number): 'fresh' | 'warn' | 'late' {
   return 'fresh';
 }
 
-// forwardRef: AnimatePresence mode="popLayout" measures exiting cards via ref.
-export const KitchenCard = forwardRef<HTMLElement, KitchenCardProps>(function KitchenCard(
-  { order, now, onStart, onReady },
-  ref
-) {
+// Plain DOM, no framer-motion: the board mutates on every "start"/"ready" tap
+// and refetch, so layout/exit animations here caused reflow jank and a
+// flicker on cheap tablets. Cards appear/leave instantly; a cheap opacity
+// fade-in (CSS, GPU-composited) softens new arrivals.
+export function KitchenCard({ order, now, onStart, onReady }: KitchenCardProps) {
   const minutes = Math.floor((now - order.createdAt) / 60000);
   const tier = ageTier(minutes);
   const timeLabel = minutes < 1 ? 'עכשיו' : `${minutes} ד׳`;
@@ -29,15 +27,9 @@ export const KitchenCard = forwardRef<HTMLElement, KitchenCardProps>(function Ki
   const hasDetails = order.customerName || order.phone;
 
   return (
-    <motion.article
-      ref={ref}
-      layout
+    <article
       className={`kcard kcard--${tier} ${order.status === 'preparing' ? 'kcard--prep' : ''}`}
       data-testid={`kcard-${order.id}`}
-      initial={{ opacity: 0, y: -10, scale: 0.97 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.94, transition: { duration: 0.2 } }}
-      transition={{ type: 'spring', stiffness: 360, damping: 28 }}
     >
       <div className="kcard__strip" aria-hidden="true" />
       <header className="kcard__head">
@@ -68,18 +60,18 @@ export const KitchenCard = forwardRef<HTMLElement, KitchenCardProps>(function Ki
 
       <footer className="kcard__foot">
         {order.status === 'new' ? (
-          <motion.button className="kbtn kbtn--start" whileTap={{ scale: 0.97 }} onClick={() => onStart(order.id)}>
+          <button className="kbtn kbtn--start" onClick={() => onStart(order.id)}>
             התחל הכנה
-          </motion.button>
+          </button>
         ) : (
           <>
             <span className="kbadge">בהכנה</span>
-            <motion.button className="kbtn kbtn--ready" whileTap={{ scale: 0.97 }} onClick={() => onReady(order.id)}>
+            <button className="kbtn kbtn--ready" onClick={() => onReady(order.id)}>
               מוכן ✓
-            </motion.button>
+            </button>
           </>
         )}
       </footer>
-    </motion.article>
+    </article>
   );
-});
+}

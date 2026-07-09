@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { AnimatePresence } from 'framer-motion';
 import { loadOrders, subscribe, setStatus } from '../lib/orderBus';
 import { KitchenCard } from './KitchenCard';
 import { Wordmark } from '../components/Wordmark';
@@ -43,17 +42,15 @@ export function Kitchen({ onSignOut }: KitchenProps = {}) {
         </div>
       ) : (
         <main className="kboard">
-          <AnimatePresence mode="popLayout">
-            {active.map((o) => (
-              <KitchenCard
-                key={o.id}
-                order={o}
-                now={now}
-                onStart={(id) => setStatus(id, 'preparing')}
-                onReady={(id) => setStatus(id, 'ready')}
-              />
-            ))}
-          </AnimatePresence>
+          {active.map((o) => (
+            <KitchenCard
+              key={o.id}
+              order={o}
+              now={now}
+              onStart={(id) => setStatus(id, 'preparing')}
+              onReady={(id) => setStatus(id, 'ready')}
+            />
+          ))}
         </main>
       )}
     </div>

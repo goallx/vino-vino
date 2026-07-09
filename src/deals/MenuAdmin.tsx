@@ -128,23 +128,28 @@ function ProductEditor({ initial, onCancel, onSave }: ProductEditorProps) {
   }
 
   return (
-    <motion.div className="scrim" onClick={onCancel} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+    <motion.div className="scrim scrim--top" onClick={onCancel} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }}>
       <motion.div
-        className="deditor"
+        className="deditor deditor--wide"
         role="dialog"
         aria-label="עריכת פריט"
         onClick={(e) => e.stopPropagation()}
-        initial={{ scale: 0.94, opacity: 0, y: 12 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.94, opacity: 0, y: 12 }}
-        transition={{ type: 'spring', stiffness: 360, damping: 28 }}
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.12, ease: 'easeOut' }}
       >
-        <div className="deditor__head">
+        {/* Sticky header keeps Save reachable above the tablet keyboard, which
+            covers the bottom of the screen in landscape. */}
+        <div className="deditor__head deditor__head--bar">
+          <button className="btn btn--ghost btn--sm" onClick={onCancel}>ביטול</button>
           <h2 className="deditor__title">{isNew ? 'פריט חדש' : 'עריכת פריט'}</h2>
-          <button className="btn btn--ghost btn--sm" onClick={onCancel}>סגור</button>
+          <button className="btn btn--send btn--sm" disabled={!valid} onClick={() => onSave(draft)}>
+            שמור פריט
+          </button>
         </div>
 
-        <div className="deditor__body">
+        <div className="deditor__body deditor__body--grid">
           <label className="dfield">
             <span>שם הפריט</span>
             <input type="text" placeholder="לדוגמה: פיצה מרגריטה" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} autoFocus />
@@ -158,29 +163,6 @@ function ProductEditor({ initial, onCancel, onSave }: ProductEditorProps) {
               ))}
             </select>
           </label>
-
-          <label className="dfield">
-            <span>תיאור (רשות)</span>
-            <input type="text" placeholder="לדוגמה: פטריות, בצל, זיתים" value={draft.description ?? ''} onChange={(e) => setDraft({ ...draft, description: e.target.value || undefined })} />
-          </label>
-
-          <div className="dfield">
-            <span>תמונה (רשות)</span>
-            <div className="dphoto">
-              {draft.photoUrl ? (
-                <img className="dphoto__preview" src={draft.photoUrl} alt="" />
-              ) : (
-                <span className="dphoto__none">ללא תמונה</span>
-              )}
-              <label className="btn btn--ghost btn--sm dphoto__pick">
-                {uploading ? 'מעלה…' : draft.photoUrl ? 'החלפה' : 'העלאת תמונה'}
-                <input type="file" accept="image/*" hidden onChange={onPickPhoto} disabled={uploading} />
-              </label>
-              {draft.photoUrl && !uploading && (
-                <button className="btn btn--ghost btn--sm" onClick={onRemovePhoto}>הסרה</button>
-              )}
-            </div>
-          </div>
 
           <label className="dfield">
             <span>{draft.variants ? 'מחיר בסיס (לפריט יש גם גדלים)' : 'מחיר'}</span>
@@ -203,13 +185,44 @@ function ProductEditor({ initial, onCancel, onSave }: ProductEditorProps) {
             </div>
           </div>
 
+          <label className="dfield">
+            <span>תיאור (רשות)</span>
+            <input type="text" placeholder="לדוגמה: פטריות, בצל, זיתים" value={draft.description ?? ''} onChange={(e) => setDraft({ ...draft, description: e.target.value || undefined })} />
+          </label>
+
+          <div className="dactive">
+            <span className="dfield"><span>זמינות</span></span>
+            <div className="seg" role="group" aria-label="זמינות פריט">
+              <button className={draft.active !== false ? 'is-active seg--paid' : ''} onClick={() => setDraft({ ...draft, active: true })}>זמין</button>
+              <button className={draft.active === false ? 'is-active' : ''} onClick={() => setDraft({ ...draft, active: false })}>מוסתר</button>
+            </div>
+          </div>
+
+          <div className="dfield dfield--full">
+            <span>תמונה (רשות)</span>
+            <div className="dphoto">
+              {draft.photoUrl ? (
+                <img className="dphoto__preview" src={draft.photoUrl} alt="" />
+              ) : (
+                <span className="dphoto__none">ללא תמונה</span>
+              )}
+              <label className="btn btn--ghost btn--sm dphoto__pick">
+                {uploading ? 'מעלה…' : draft.photoUrl ? 'החלפה' : 'העלאת תמונה'}
+                <input type="file" accept="image/*" hidden onChange={onPickPhoto} disabled={uploading} />
+              </label>
+              {draft.photoUrl && !uploading && (
+                <button className="btn btn--ghost btn--sm" onClick={onRemovePhoto}>הסרה</button>
+              )}
+            </div>
+          </div>
+
           {draft.isPizza && (
-            <label className="dfield">
+            <label className="dfield dfield--full">
               <span>תוספות בבסיס (מה כלול בפיצה כברירת מחדל)</span>
               <select
                 multiple
                 className="dselect dselect--multi"
-                size={Math.min(8, Math.max(4, toppings.length))}
+                size={Math.min(5, Math.max(4, toppings.length))}
                 value={draft.art ?? []}
                 onChange={(e) => {
                   const ids = Array.from(e.target.selectedOptions).map((o) => o.value);
@@ -222,21 +235,6 @@ function ProductEditor({ initial, onCancel, onSave }: ProductEditorProps) {
               </select>
             </label>
           )}
-
-          <div className="dactive">
-            <span className="dfield"><span>זמינות</span></span>
-            <div className="seg" role="group" aria-label="זמינות פריט">
-              <button className={draft.active !== false ? 'is-active seg--paid' : ''} onClick={() => setDraft({ ...draft, active: true })}>זמין</button>
-              <button className={draft.active === false ? 'is-active' : ''} onClick={() => setDraft({ ...draft, active: false })}>מוסתר</button>
-            </div>
-          </div>
-        </div>
-
-        <div className="deditor__foot">
-          <button className="btn btn--ghost" onClick={onCancel}>ביטול</button>
-          <button className="btn btn--send" disabled={!valid} onClick={() => onSave(draft)}>
-            שמור פריט
-          </button>
         </div>
       </motion.div>
     </motion.div>
