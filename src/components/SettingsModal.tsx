@@ -3,17 +3,16 @@ import { motion } from 'framer-motion';
 
 interface SettingsModalProps {
   username?: string;
-  onSignOut?: () => void;
   onClose: () => void;
 }
 
 /**
  * The "manager's chit": everything that used to crowd the topbar —
- * admin pages, the other screens, sign-out — grouped in one panel.
+ * admin pages, the other screens — grouped in one panel.
  * Links navigate in place (no new tab — tablet browsers hide tabs and a
  * stray one is easy to lose); the in-progress order is autosaved as a draft.
  */
-export function SettingsModal({ username, onSignOut, onClose }: SettingsModalProps) {
+export function SettingsModal({ username, onClose }: SettingsModalProps) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -99,21 +98,6 @@ export function SettingsModal({ username, onSignOut, onClose }: SettingsModalPro
               <span className="srow__go" aria-hidden="true">←</span>
             </a>
           </section>
-
-          {onSignOut && (
-            <section className="sgroup" aria-label="חשבון">
-              <h3 className="sgroup__label">חשבון</h3>
-              <button className="srow srow--signout" onClick={onSignOut}>
-                <span className="srow__icon" aria-hidden="true">🔒</span>
-                <span className="srow__text">
-                  <span className="srow__name">יציאה</span>
-                  <span className="srow__desc">
-                    {username ? `מחובר בתור ${username}` : 'התנתקות מהמערכת'}
-                  </span>
-                </span>
-              </button>
-            </section>
-          )}
         </div>
       </motion.div>
     </motion.div>

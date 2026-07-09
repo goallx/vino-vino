@@ -70,11 +70,7 @@ function SplitBar({ a, b, aColor, bColor }: { a: number; b: number; aColor: stri
   );
 }
 
-interface ReportsProps {
-  onSignOut?: () => void;
-}
-
-export function Reports({ onSignOut }: ReportsProps = {}) {
+export function Reports() {
   const [orders, setOrders] = useState(loadOrders);
   const [range, setRange] = useState<Range>(todayRange);
   const [dateValue, setDateValue] = useState('');
@@ -121,7 +117,6 @@ export function Reports({ onSignOut }: ReportsProps = {}) {
         <nav className="rtop__nav">
           <a href="/">קבלת הזמנות</a>
           <a href="/kitchen">מסך מטבח</a>
-          {onSignOut && <button onClick={onSignOut}>יציאה</button>}
         </nav>
       </header>
 

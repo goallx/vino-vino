@@ -271,8 +271,7 @@ describe('draft persistence', () => {
 describe('settings modal', () => {
   it('opens from the topbar and gathers the admin, screen and account entries', async () => {
     const user = userEvent.setup();
-    const signOut = () => {};
-    render(<App username="admin" onSignOut={signOut} />);
+    render(<App username="admin" />);
 
     await user.click(screen.getByRole('button', { name: /הגדרות/ }));
     const dialog = screen.getByRole('dialog', { name: 'הגדרות' });
@@ -282,7 +281,7 @@ describe('settings modal', () => {
     expect(within(dialog).getByRole('link', { name: /^מסך מטבח/ })).toHaveAttribute('href', '/kitchen');
     expect(within(dialog).getByRole('link', { name: /^הזמנות/ })).toHaveAttribute('href', '/orders');
     expect(within(dialog).getByRole('link', { name: /^דוח יומי/ })).toHaveAttribute('href', '/reports');
-    expect(within(dialog).getByRole('button', { name: /יציאה/ })).toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: /יציאה/ })).not.toBeInTheDocument();
 
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'הגדרות' })).not.toBeInTheDocument());

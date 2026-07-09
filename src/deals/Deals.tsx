@@ -9,17 +9,13 @@ import { blankProduct, MenuAdmin } from './MenuAdmin';
 import { blankTopping, ToppingsAdmin } from './ToppingsAdmin';
 import { useConfirm } from '../components/ConfirmDialog';
 
-interface DealsProps {
-  onSignOut?: () => void;
-}
-
 type Tab = 'deals' | 'menu' | 'toppings';
 
 function blankBundle(): Bundle {
   return { id: newBundleId(), name: '', items: [], price: 0, active: true };
 }
 
-export function Deals({ onSignOut }: DealsProps) {
+export function Deals() {
   // /menu deep-links straight to the menu tab (same admin page).
   const [tab, setTab] = useState<Tab>(() => (window.location.pathname.startsWith('/menu') ? 'menu' : 'deals'));
   const [bundles, setBundles] = useState<Bundle[]>(() => loadBundles());
@@ -68,7 +64,6 @@ export function Deals({ onSignOut }: DealsProps) {
           )}
           <a href="/">קבלת הזמנות ←</a>
           <a href="/reports">דוח יומי ←</a>
-          {onSignOut && <button onClick={onSignOut}>יציאה</button>}
         </nav>
       </header>
 

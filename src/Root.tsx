@@ -22,17 +22,17 @@ function Splash() {
 
 /** Minimal path switch, behind an auth gate. */
 function Gate() {
-  const { user, loading, signOut } = useAuth();
+  const { user, loading } = useAuth();
 
   if (loading) return <Splash />;
   if (!user) return <Login />;
 
   const path = window.location.pathname;
-  if (path.startsWith('/kitchen')) return <Kitchen onSignOut={signOut} />;
-  if (path.startsWith('/reports')) return <Reports onSignOut={signOut} />;
-  if (path.startsWith('/orders')) return <Orders onSignOut={signOut} />;
-  if (path.startsWith('/deals') || path.startsWith('/menu')) return <Deals onSignOut={signOut} />;
-  return <App username={user.username} onSignOut={signOut} />;
+  if (path.startsWith('/kitchen')) return <Kitchen />;
+  if (path.startsWith('/reports')) return <Reports />;
+  if (path.startsWith('/orders')) return <Orders />;
+  if (path.startsWith('/deals') || path.startsWith('/menu')) return <Deals />;
+  return <App username={user.username} />;
 }
 
 export default function Root() {

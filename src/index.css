@@ -1037,7 +1037,7 @@ input, select { font-family: inherit; }
 }
 .dtop__brand { font-family: var(--display); font-weight: 900; font-size: 23px; }
 .dtop__sub { font-size: 13.5px; color: #d8b9a6; }
-.dtop__nav { display: flex; gap: 10px; align-items: center; margin-inline-start: auto; }
+.dtop__nav { display: flex; gap: 24px; align-items: center; margin-inline-start: auto; }
 .dtop__nav a, .dtop__nav button { color: #f0c9a0; text-decoration: none; font-size: 13.5px; font-weight: 600; }
 .dtop__nav a:hover, .dtop__nav button:hover { color: #fff; }
 .dtop__new {

@@ -10,7 +10,6 @@ interface TicketProps {
   subtotal: number;
   discountTotal: number;
   total: number;
-  onRemoveDiscount: (uid: string) => void;
   orderNumber: number;
   onEditLine: (line: CartLine) => void;
   onRemoveLine: (line: CartLine) => void;
@@ -76,9 +75,6 @@ export function Ticket(props: TicketProps) {
             <span className="disc__tag">מבצע</span>
             <span className="disc__name">{d.label}</span>
             <span className="disc__amount">−{shekels(d.amount)}</span>
-            <button className="disc__x" onClick={() => props.onRemoveDiscount(d.uid)} aria-label={`הסר מבצע ${d.label}`}>
-              ✕
-            </button>
           </div>
         ))}
       </div>

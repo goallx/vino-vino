@@ -30,10 +30,9 @@ interface Toast {
 
 interface AppProps {
   username?: string;
-  onSignOut?: () => void;
 }
 
-export default function App({ username, onSignOut }: AppProps = {}) {
+export default function App({ username }: AppProps = {}) {
   const { state, dispatch, subtotal, discountTotal, total } = useOrder();
   const [builder, setBuilder] = useState<BuilderTarget | null>(null);
   const [match, setMatch] = useState<{ name?: string; past: PastOrder[] } | null>(null);
@@ -225,7 +224,6 @@ export default function App({ username, onSignOut }: AppProps = {}) {
               subtotal={subtotal}
               discountTotal={discountTotal}
               total={total}
-              onRemoveDiscount={(uid) => dispatch({ kind: 'removeDiscount', uid })}
               orderNumber={orderNumber}
               onEditLine={(l) => setBuilder({ product: { id: l.productId } as Product, editing: l })}
               onRemoveLine={removeLine}
@@ -265,7 +263,6 @@ export default function App({ username, onSignOut }: AppProps = {}) {
           <SettingsModal
             key="settings"
             username={username}
-            onSignOut={onSignOut}
             onClose={() => setSettingsOpen(false)}
           />
         )}

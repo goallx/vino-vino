@@ -4,13 +4,18 @@ import {
   bundleGross,
   bundleSaving,
   buildBundleLines,
+  detectBundles,
   listActiveBundles,
   loadBundles,
   removeBundle,
   saveBundle,
 } from './bundles';
 import { seedCatalog } from '../test/fixtures/seed';
-import type { Bundle } from '../types';
+import type { Bundle, CartLine } from '../types';
+
+function line(productId: string, qty: number): CartLine {
+  return { id: `l_${productId}_${qty}`, productId, name: productId, qty, unitPrice: 0, isSplit: false, parts: [] };
+}
 
 const twoVino: Bundle = {
   id: 'bnd_test',
@@ -96,5 +101,37 @@ describe('bundle application', () => {
     expect(discount.label).toBe('זוג וינו');
     expect(discount.amount).toBe(3000);
     expect(discount.uid).toBeTruthy();
+  });
+});
+
+describe('detectBundles (auto-apply from the cart)', () => {
+  it('applies a deal once the cart holds its items', () => {
+    const applied = detectBundles([line('p_vino', 2)], [twoVino]);
+    expect(applied).toHaveLength(1);
+    expect(applied[0].bundleId).toBe('bnd_test');
+    expect(applied[0].amount).toBe(3000); // ₪190 gross − ₪160 deal
+  });
+
+  it('applies the deal as many whole times as the cart allows', () => {
+    const applied = detectBundles([line('p_vino', 5)], [twoVino]);
+    expect(applied).toHaveLength(2); // 5 pizzas → two pairs, one left over
+    expect(applied.map((a) => a.uid)).toEqual(['bnd_test#0', 'bnd_test#1']);
+  });
+
+  it('does not apply when the cart is short of the required items', () => {
+    expect(detectBundles([line('p_vino', 1)], [twoVino])).toHaveLength(0);
+  });
+
+  it('consumes matched units so one item cannot feed two deals', () => {
+    const other: Bundle = { ...twoVino, id: 'bnd_other', name: 'עוד וינו' };
+    // Only 2 pizzas in the cart but two deals both want 2 — only one can win.
+    const applied = detectBundles([line('p_vino', 2)], [twoVino, other]);
+    expect(applied).toHaveLength(1);
+    expect(applied[0].bundleId).toBe('bnd_test');
+  });
+
+  it('skips a deal that would not beat the à-la-carte price', () => {
+    const overpriced: Bundle = { ...twoVino, price: 25000 }; // dearer than ₪190 gross
+    expect(detectBundles([line('p_vino', 2)], [overpriced])).toHaveLength(0);
   });
 });

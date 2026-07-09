@@ -7,9 +7,6 @@ import { Wordmark } from '../components/Wordmark';
 import { DishThumb } from '../components/DishThumb';
 import type { KitchenOrder } from '../types';
 
-interface OrdersProps {
-  onSignOut?: () => void;
-}
 
 type Filter = 'active' | 'all' | 'cancelled';
 
@@ -93,7 +90,7 @@ function OrderRow({ order, onCancel }: { order: KitchenOrder; onCancel: (id: str
   );
 }
 
-export function Orders({ onSignOut }: OrdersProps = {}) {
+export function Orders() {
   const [orders, setOrders] = useState(loadOrders);
   const [filter, setFilter] = useState<Filter>('active');
 
@@ -120,7 +117,6 @@ export function Orders({ onSignOut }: OrdersProps = {}) {
           <a href="/">קבלת הזמנות</a>
           <a href="/kitchen">מטבח</a>
           <a href="/reports">דוח</a>
-          {onSignOut && <button onClick={onSignOut}>יציאה</button>}
         </nav>
       </header>
 

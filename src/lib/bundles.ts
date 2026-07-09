@@ -164,3 +164,71 @@ export function bundleApplication(bundle: Bundle): { lines: CartLine[]; discount
     },
   };
 }
+
+/** A unit of one cart line still available to be claimed by a deal. */
+interface PoolUnit {
+  productId: string;
+  price: Money; // this line's unit price (incl. its toppings/variant)
+  remaining: number;
+}
+
+/**
+ * Try to claim one full copy of the bundle from the pool. Returns the claims to
+ * make and the full-price gross of the claimed units, or null if the cart
+ * doesn't hold every required item. Non-mutating — the caller commits.
+ */
+function claimBundle(
+  pool: PoolUnit[],
+  bundle: Bundle,
+): { claims: Array<{ unit: PoolUnit; take: number }>; gross: Money } | null {
+  const claims: Array<{ unit: PoolUnit; take: number }> = [];
+  // Track how much of each unit we've tentatively reserved this pass.
+  const reserved = new Map<PoolUnit, number>();
+  let gross = 0;
+  for (const item of bundle.items) {
+    let need = item.qty;
+    for (const unit of pool) {
+      if (need <= 0) break;
+      if (unit.productId !== item.productId) continue;
+      const free = unit.remaining - (reserved.get(unit) ?? 0);
+      if (free <= 0) continue;
+      const take = Math.min(free, need);
+      reserved.set(unit, (reserved.get(unit) ?? 0) + take);
+      claims.push({ unit, take });
+      gross += unit.price * take;
+      need -= take;
+    }
+    if (need > 0) return null; // not enough of this item in the cart
+  }
+  return { claims, gross };
+}
+
+/**
+ * Scan the cart for owner-defined deals and return the savings to apply.
+ *
+ * Each active bundle is matched as many whole times as the cart's items allow,
+ * consuming the matched units so a pizza can't count toward two deals at once.
+ * The saving is the *actual* full price of the claimed lines minus the deal
+ * price, so it stays correct even when a matched pizza carries paid toppings.
+ * Deals that wouldn't save anything for these lines are skipped.
+ */
+export function detectBundles(lines: CartLine[], bundles: Bundle[] = listActiveBundles()): AppliedBundle[] {
+  const pool: PoolUnit[] = lines.map((l) => ({
+    productId: l.productId,
+    price: computeUnitPrice(l),
+    remaining: l.qty,
+  }));
+  const applied: AppliedBundle[] = [];
+  for (const bundle of bundles) {
+    if (bundle.items.length === 0) continue;
+    for (let n = 0; ; n += 1) {
+      const claim = claimBundle(pool, bundle);
+      if (!claim) break;
+      const amount = claim.gross - bundle.price;
+      if (amount <= 0) break; // this deal doesn't beat the à-la-carte price here
+      for (const { unit, take } of claim.claims) unit.remaining -= take;
+      applied.push({ uid: `${bundle.id}#${n}`, bundleId: bundle.id, label: bundle.name, amount });
+    }
+  }
+  return applied;
+}

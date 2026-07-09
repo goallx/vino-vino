@@ -3,11 +3,7 @@ import { loadOrders, subscribe, setStatus } from '../lib/orderBus';
 import { KitchenCard } from './KitchenCard';
 import { Wordmark } from '../components/Wordmark';
 
-interface KitchenProps {
-  onSignOut?: () => void;
-}
-
-export function Kitchen({ onSignOut }: KitchenProps = {}) {
+export function Kitchen() {
   const [orders, setOrders] = useState(loadOrders);
   const [now, setNow] = useState(() => Date.now());
 
@@ -32,7 +28,6 @@ export function Kitchen({ onSignOut }: KitchenProps = {}) {
         <span className="ktop__brand"><Wordmark /> · מטבח</span>
         <span className="ktop__count">{active.length} הזמנות פעילות</span>
         <a className="ktop__link" href="/">← קבלת הזמנות</a>
-        {onSignOut && <button className="ktop__link" onClick={onSignOut}>יציאה</button>}
       </header>
 
       {active.length === 0 ? (
