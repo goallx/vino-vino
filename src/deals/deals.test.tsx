@@ -1,9 +1,13 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Deals } from './Deals';
+import { ConfirmProvider } from '../components/ConfirmDialog';
 import { productsById } from '../lib/menuStore';
 import { seedCatalog } from '../test/fixtures/seed';
+
+/** Deals uses useConfirm(), so render it inside the provider. */
+const renderDeals = () => render(<ConfirmProvider><Deals /></ConfirmProvider>);
 
 beforeEach(() => {
   seedCatalog();
@@ -37,7 +41,7 @@ describe('menu CRUD', () => {
     await user.click(screen.getByRole('tab', { name: 'תפריט' }));
     await user.click(screen.getByText('+ פריט חדש'));
 
-    const dialog = screen.getByRole('dialog', { name: 'עריכת פריט' });
+    const dialog = screen.getByRole('group', { name: 'עריכת פריט' });
     await user.type(within(dialog).getByPlaceholderText('לדוגמה: פיצה מרגריטה'), 'קלצונה');
     await user.type(within(dialog).getByPlaceholderText('0'), '45');
     await user.click(within(dialog).getByText('שמור פריט'));
@@ -58,7 +62,7 @@ describe('menu CRUD', () => {
     const card = screen.getByText('וינו וינו').closest('.mcard')!;
     await user.click(within(card as HTMLElement).getByText('עריכה'));
 
-    const dialog = screen.getByRole('dialog', { name: 'עריכת פריט' });
+    const dialog = screen.getByRole('group', { name: 'עריכת פריט' });
     const price = within(dialog).getByPlaceholderText('0');
     await user.clear(price);
     await user.type(price, '99');
@@ -69,8 +73,7 @@ describe('menu CRUD', () => {
 
   it('toggles availability and deletes with confirmation', async () => {
     const user = userEvent.setup();
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    render(<Deals />);
+    renderDeals();
     await user.click(screen.getByRole('tab', { name: 'תפריט' }));
 
     const card = screen.getByText('וינו וינו').closest('.mcard') as HTMLElement;
@@ -79,6 +82,9 @@ describe('menu CRUD', () => {
     expect(within(card).getByText('מוסתר', { selector: '.mcard__hidden' })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'מחק וינו וינו' }));
+    // styled confirm dialog → confirm the deletion
+    const dialog = screen.getByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: 'מחק' }));
     expect(productsById['p_vino']).toBeUndefined();
   });
 
@@ -88,7 +94,7 @@ describe('menu CRUD', () => {
     await user.click(screen.getByRole('tab', { name: 'תפריט' }));
     await user.click(screen.getByText('+ פריט חדש'));
 
-    const dialog = screen.getByRole('dialog', { name: 'עריכת פריט' });
+    const dialog = screen.getByRole('group', { name: 'עריכת פריט' });
     await user.type(within(dialog).getByPlaceholderText('לדוגמה: פיצה מרגריטה'), 'מרגריטה');
     await user.type(within(dialog).getByPlaceholderText('0'), '60');
     await user.click(within(dialog).getByText('פיצה 🍕'));
@@ -108,7 +114,7 @@ describe('menu CRUD', () => {
     await user.click(screen.getByRole('tab', { name: 'תפריט' }));
     await user.click(screen.getByText('+ פריט חדש'));
 
-    const dialog = screen.getByRole('dialog', { name: 'עריכת פריט' });
+    const dialog = screen.getByRole('group', { name: 'עריכת פריט' });
     await user.type(within(dialog).getByPlaceholderText('לדוגמה: פיצה מרגריטה'), 'פטריות ובצל');
     await user.type(within(dialog).getByPlaceholderText('0'), '55');
     await user.click(within(dialog).getByText('פיצה 🍕'));
@@ -126,7 +132,7 @@ describe('menu CRUD', () => {
     // reopening the editor shows the saved selection
     const card = screen.getByText('פטריות ובצל').closest('.mcard') as HTMLElement;
     await user.click(within(card).getByText('עריכה'));
-    const reopened = screen.getByRole('dialog', { name: 'עריכת פריט' });
+    const reopened = screen.getByRole('group', { name: 'עריכת פריט' });
     const reopenedSelect = within(reopened).getByLabelText('תוספות בבסיס (מה כלול בפיצה כברירת מחדל)') as HTMLSelectElement;
     const selected = Array.from(reopenedSelect.selectedOptions).map((o) => o.value);
     expect(selected).toEqual(['t_mushroom', 't_onion']);

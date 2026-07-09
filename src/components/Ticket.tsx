@@ -100,7 +100,7 @@ export function Ticket(props: TicketProps) {
           </span>
         </div>
         <button className="btn btn--send" disabled={!props.canContinue} onClick={props.onContinue}>
-          המשך לפרטי הזמנה →
+          ← המשך לפרטי הזמנה
         </button>
       </footer>
     </aside>

@@ -3,6 +3,7 @@ import App from './App';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import { Login } from './auth/Login';
 import { Wordmark } from './components/Wordmark';
+import { ConfirmProvider } from './components/ConfirmDialog';
 
 // Secondary screens are lazy so the order-entry tablet only downloads and
 // parses the code it actually uses.
@@ -37,9 +38,11 @@ function Gate() {
 export default function Root() {
   return (
     <AuthProvider>
-      <Suspense fallback={<Splash />}>
-        <Gate />
-      </Suspense>
+      <ConfirmProvider>
+        <Suspense fallback={<Splash />}>
+          <Gate />
+        </Suspense>
+      </ConfirmProvider>
     </AuthProvider>
   );
 }

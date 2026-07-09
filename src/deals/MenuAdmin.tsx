@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
 import type { Product } from '../types';
 import { categories, newProductId, products, removeProduct, saveProduct, toppings } from '../lib/menuStore';
 import { uploadProductPhoto, removeProductPhoto } from '../lib/photos';
 import { shekels } from '../lib/money';
 import { DishMedia } from '../components/DishMedia';
+import { useConfirm } from '../components/ConfirmDialog';
 
 interface MenuAdminProps {
   editing: Product | null;
@@ -30,14 +30,15 @@ export function MenuAdmin({ editing, onEdit }: MenuAdminProps) {
   // `products` is the store's live binding; bump local state to re-render after mutations.
   const [, setStamp] = useState(0);
   const bump = () => setStamp((n) => n + 1);
+  const confirm = useConfirm();
 
   function toggleActive(p: Product) {
     saveProduct({ ...p, active: p.active === false });
     bump();
   }
 
-  function del(p: Product) {
-    if (!window.confirm(`למחוק את "${p.name || 'ללא שם'}" מהתפריט?`)) return;
+  async function del(p: Product) {
+    if (!(await confirm({ message: `למחוק את "${p.name || 'ללא שם'}" מהתפריט?`, danger: true, confirmLabel: 'מחק' }))) return;
     removeProduct(p.id);
     if (p.photoUrl) void removeProductPhoto(p.id);
     bump();
@@ -49,8 +50,16 @@ export function MenuAdmin({ editing, onEdit }: MenuAdminProps) {
     bump();
   }
 
+  // A brand-new product isn't in the list yet — its editor opens at the top.
+  // Editing an existing one expands that card into a full-width row in place.
+  const creating = editing != null && !products.some((p) => p.id === editing.id);
+
   return (
     <>
+      {creating && (
+        <ProductEditor key={editing.id} initial={editing} onCancel={() => onEdit(null)} onSave={onSave} />
+      )}
+
       {categories.map((c) => {
         const items = products.filter((p) => p.categoryId === c.id);
         if (items.length === 0) return null;
@@ -58,38 +67,38 @@ export function MenuAdmin({ editing, onEdit }: MenuAdminProps) {
           <section key={c.id} className="msec">
             <h2 className="msec__title">{c.name}</h2>
             <div className="dgrid">
-              {items.map((p) => (
-                <div key={p.id} className={`mcard ${p.active === false ? 'is-off' : ''}`}>
-                  <div className="mcard__head">
-                    <div className="mcard__thumb">
-                      <DishMedia product={p} size={64} />
+              {items.map((p) =>
+                editing?.id === p.id ? (
+                  <ProductEditor key={p.id} row initial={editing} onCancel={() => onEdit(null)} onSave={onSave} />
+                ) : (
+                  <div key={p.id} className={`mcard ${p.active === false ? 'is-off' : ''}`}>
+                    <div className="mcard__head">
+                      <div className="mcard__thumb">
+                        <DishMedia product={p} size={64} />
+                      </div>
+                      <div className="mcard__info">
+                        <span className="mcard__name">{p.name}</span>
+                        {p.description && <span className="mcard__desc">{p.description}</span>}
+                        <span className="mcard__price">
+                          {p.variants ? `מ־${shekels(p.variants[0].price)}` : shekels(p.basePrice)}
+                        </span>
+                      </div>
+                      {p.active === false && <span className="mcard__hidden">מוסתר</span>}
                     </div>
-                    <div className="mcard__info">
-                      <span className="mcard__name">{p.name}</span>
-                      {p.description && <span className="mcard__desc">{p.description}</span>}
-                      <span className="mcard__price">
-                        {p.variants ? `מ־${shekels(p.variants[0].price)}` : shekels(p.basePrice)}
-                      </span>
+                    <div className="dcard__actions mcard__actions">
+                      <button className="dcard__edit" onClick={() => onEdit(p)}>עריכה</button>
+                      <button className={`dcard__toggle ${p.active !== false ? 'is-on' : ''}`} onClick={() => toggleActive(p)}>
+                        {p.active !== false ? 'זמין' : 'מוסתר'}
+                      </button>
+                      <button className="dcard__del" onClick={() => del(p)} aria-label={`מחק ${p.name}`}>🗑</button>
                     </div>
-                    {p.active === false && <span className="mcard__hidden">מוסתר</span>}
                   </div>
-                  <div className="dcard__actions mcard__actions">
-                    <button className="dcard__edit" onClick={() => onEdit(p)}>עריכה</button>
-                    <button className={`dcard__toggle ${p.active !== false ? 'is-on' : ''}`} onClick={() => toggleActive(p)}>
-                      {p.active !== false ? 'זמין' : 'מוסתר'}
-                    </button>
-                    <button className="dcard__del" onClick={() => del(p)} aria-label={`מחק ${p.name}`}>🗑</button>
-                  </div>
-                </div>
-              ))}
+                ),
+              )}
             </div>
           </section>
         );
       })}
-
-      <AnimatePresence>
-        {editing && <ProductEditor key={editing.id} initial={editing} onCancel={() => onEdit(null)} onSave={onSave} />}
-      </AnimatePresence>
     </>
   );
 }
@@ -98,9 +107,11 @@ interface ProductEditorProps {
   initial: Product;
   onCancel: () => void;
   onSave: (p: Product) => void;
+  /** When editing in place, span the full grid row. */
+  row?: boolean;
 }
 
-function ProductEditor({ initial, onCancel, onSave }: ProductEditorProps) {
+function ProductEditor({ initial, onCancel, onSave, row }: ProductEditorProps) {
   const [draft, setDraft] = useState<Product>(initial);
   const [uploading, setUploading] = useState(false);
   const isNew = !initial.name;
@@ -128,28 +139,20 @@ function ProductEditor({ initial, onCancel, onSave }: ProductEditorProps) {
   }
 
   return (
-    <motion.div className="scrim scrim--top" onClick={onCancel} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }}>
-      <motion.div
-        className="deditor deditor--wide"
-        role="dialog"
-        aria-label="עריכת פריט"
-        onClick={(e) => e.stopPropagation()}
-        initial={{ opacity: 0, scale: 0.98 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.12, ease: 'easeOut' }}
-      >
-        {/* Sticky header keeps Save reachable above the tablet keyboard, which
-            covers the bottom of the screen in landscape. */}
-        <div className="deditor__head deditor__head--bar">
+    // Inline editor — no modal, so the page (not a trapped dialog) scrolls the
+    // focused field above the tablet keyboard, and there's no double-scroll.
+    <div className={`peditor ${row ? 'peditor--row' : ''}`} role="group" aria-label="עריכת פריט">
+      <div className="peditor__head">
+        <h2 className="peditor__title">{isNew ? 'פריט חדש' : 'עריכת פריט'}</h2>
+        <div className="peditor__actions">
           <button className="btn btn--ghost btn--sm" onClick={onCancel}>ביטול</button>
-          <h2 className="deditor__title">{isNew ? 'פריט חדש' : 'עריכת פריט'}</h2>
           <button className="btn btn--send btn--sm" disabled={!valid} onClick={() => onSave(draft)}>
             שמור פריט
           </button>
         </div>
+      </div>
 
-        <div className="deditor__body deditor__body--grid">
+      <div className="deditor__body--grid">
           <label className="dfield">
             <span>שם הפריט</span>
             <input type="text" placeholder="לדוגמה: פיצה מרגריטה" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} autoFocus />
@@ -235,8 +238,7 @@ function ProductEditor({ initial, onCancel, onSave }: ProductEditorProps) {
               </select>
             </label>
           )}
-        </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }

@@ -7,6 +7,7 @@ import { Wordmark } from '../components/Wordmark';
 import { bundleGross, bundleSaving, loadBundles, newBundleId, removeBundle, saveBundle, subscribeBundles } from '../lib/bundles';
 import { blankProduct, MenuAdmin } from './MenuAdmin';
 import { blankTopping, ToppingsAdmin } from './ToppingsAdmin';
+import { useConfirm } from '../components/ConfirmDialog';
 
 interface DealsProps {
   onSignOut?: () => void;
@@ -25,6 +26,7 @@ export function Deals({ onSignOut }: DealsProps) {
   const [editing, setEditing] = useState<Bundle | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [editingTopping, setEditingTopping] = useState<Topping | null>(null);
+  const confirm = useConfirm();
 
   // The store may refresh from the DB after mount (or another device edits).
   useEffect(() => subscribeBundles(() => setBundles(loadBundles())), []);
@@ -37,8 +39,8 @@ export function Deals({ onSignOut }: DealsProps) {
     persist(saveBundle({ ...b, active: !b.active }));
   }
 
-  function del(b: Bundle) {
-    if (!window.confirm(`למחוק את המבצע "${b.name || 'ללא שם'}"?`)) return;
+  async function del(b: Bundle) {
+    if (!(await confirm({ message: `למחוק את המבצע "${b.name || 'ללא שם'}"?`, danger: true, confirmLabel: 'מחק' }))) return;
     persist(removeBundle(b.id));
   }
 

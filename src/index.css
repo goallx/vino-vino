@@ -1125,6 +1125,33 @@ input, select { font-family: inherit; }
 .dselect--multi option { padding: 9px 10px; border-radius: 6px; }
 .dselect--multi option:checked { background: var(--chit); color: var(--vino); }
 
+/* styled confirm dialog (replaces window.confirm) */
+.confirm-scrim { animation: fade-in .12s ease; }
+.confirm {
+  width: min(420px, 92vw); background: var(--surface);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-2);
+  padding: 22px; animation: pop-in .14s ease;
+}
+.confirm__title { margin: 0 0 8px; font-family: var(--display); font-weight: 800; font-size: 20px; color: var(--vino); }
+.confirm__msg { margin: 0 0 20px; font-size: 16.5px; line-height: 1.4; color: var(--ink); }
+.confirm__actions { display: flex; gap: 10px; }
+.confirm__actions .btn { flex: 1; padding: 14px; font-size: 16px; }
+
+/* inline product editor (no modal): new item opens at the top, editing an
+   existing one expands its card into a full-width row in place. */
+.peditor {
+  background: var(--surface); border: 1.5px solid var(--gold); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-2); padding: 18px 20px; margin-bottom: 18px;
+  animation: pop-in .12s ease;
+}
+.peditor--row { grid-column: 1 / -1; margin-bottom: 0; }
+.peditor__head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--line);
+}
+.peditor__title { margin: 0; font-family: var(--display); font-weight: 800; font-size: 22px; color: var(--vino); }
+.peditor__actions { display: flex; gap: 8px; }
+
 /* editor overlay */
 .deditor {
   width: min(560px, 96vw); max-height: 92vh; overflow-y: auto;

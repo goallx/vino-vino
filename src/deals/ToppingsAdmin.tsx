@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import type { Topping } from '../types';
 import { newToppingId, removeTopping, saveTopping, toppings } from '../lib/menuStore';
 import { shekels } from '../lib/money';
+import { useConfirm } from '../components/ConfirmDialog';
 
 interface ToppingsAdminProps {
   editing: Topping | null;
@@ -17,9 +18,10 @@ export function ToppingsAdmin({ editing, onEdit }: ToppingsAdminProps) {
   // `toppings` is the store's live binding; bump local state to re-render after mutations.
   const [, setStamp] = useState(0);
   const bump = () => setStamp((n) => n + 1);
+  const confirm = useConfirm();
 
-  function del(t: Topping) {
-    if (!window.confirm(`למחוק את התוספת "${t.name || 'ללא שם'}"?`)) return;
+  async function del(t: Topping) {
+    if (!(await confirm({ message: `למחוק את התוספת "${t.name || 'ללא שם'}"?`, danger: true, confirmLabel: 'מחק' }))) return;
     removeTopping(t.id);
     bump();
   }
