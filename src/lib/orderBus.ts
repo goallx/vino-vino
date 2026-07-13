@@ -18,6 +18,12 @@ const KEY = 'vino:kitchen-orders';
 const LOCAL_EVENT = 'vino:orders-changed';
 const WINDOW_DAYS = 14; // covers every report preset; older dates query directly
 
+// Realtime events, reconnects and optimistic writes can start overlapping
+// fetches. Only the newest response may replace the cache, and a status being
+// written must win over any response that still contains the previous value.
+let refetchGeneration = 0;
+const pendingStatuses = new Map<string, KitchenStatus>();
+
 const channel: BroadcastChannel | null =
   typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('vino-orders') : null;
 
@@ -58,6 +64,7 @@ interface OrderRow {
   lines: CartLine[] | null;
   discounts: AppliedBundle[] | null;
   delivery_fee: number | null;
+  total: number;
   created_at: string;
 }
 
@@ -76,6 +83,7 @@ function rowToOrder(row: OrderRow): KitchenOrder {
     lines: row.lines ?? [],
     discounts: row.discounts ?? undefined,
     deliveryFee: row.delivery_fee ?? undefined,
+    total: row.total,
   };
 }
 
@@ -87,17 +95,23 @@ function dayString(ts: number): string {
 
 async function refetch(): Promise<void> {
   if (!supabase) return;
+  const generation = ++refetchGeneration;
   const since = dayString(Date.now() - (WINDOW_DAYS - 1) * 86_400_000);
   const { data, error } = await supabase
     .from('orders')
     .select('*')
     .gte('order_day', since)
     .order('created_at');
+  if (generation !== refetchGeneration) return;
   if (error) {
     console.error('[vino] failed to fetch orders', error);
     return; // keep serving the cached list
   }
-  save((data as OrderRow[]).map(rowToOrder));
+  const orders = (data as OrderRow[]).map(rowToOrder).map((order) => {
+    const pendingStatus = pendingStatuses.get(order.id);
+    return pendingStatus ? { ...order, status: pendingStatus } : order;
+  });
+  save(orders);
   announce();
 }
 
@@ -145,17 +159,31 @@ export function publishOrder(order: KitchenOrder) {
 }
 
 export function setStatus(id: string, status: KitchenStatus) {
+  pendingStatuses.set(id, status);
+  refetchGeneration += 1; // invalidate a fetch that started before this tap
   save(loadOrders().map((o) => (o.id === id ? { ...o, status } : o)));
   announce();
-  if (supabase) {
-    void supabase
-      .from('orders')
-      .update({ status })
-      .eq('id', id)
-      .then(({ error }) => {
-        if (error) console.error('[vino] failed to update order status', error);
-      });
+  if (!supabase) {
+    pendingStatuses.delete(id);
+    return;
   }
+
+  void (async () => {
+    const { error } = await supabase.from('orders').update({ status }).eq('id', id);
+    if (error) {
+      console.error('[vino] failed to update order status', error);
+      pendingStatuses.delete(id);
+      refetchGeneration += 1;
+      await refetch(); // roll the optimistic value back to database truth
+      return;
+    }
+
+    // Keep the optimistic status pinned until one confirmed post-update fetch
+    // has refreshed the cache. The realtime event may trigger another fetch;
+    // the generation guard ensures whichever starts last is authoritative.
+    await refetch();
+    pendingStatuses.delete(id);
+  })();
 }
 
 export function clearOrders() {

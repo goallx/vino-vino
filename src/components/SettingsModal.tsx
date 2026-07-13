@@ -73,14 +73,6 @@ export function SettingsModal({ username, onClose }: SettingsModalProps) {
 
           <section className="sgroup" aria-label="מסכים">
             <h3 className="sgroup__label">מסכים</h3>
-            <a className="srow" href="/kitchen">
-              <span className="srow__icon" aria-hidden="true">👨‍🍳</span>
-              <span className="srow__text">
-                <span className="srow__name">מסך מטבח</span>
-                <span className="srow__desc">לוח ההזמנות למטבח</span>
-              </span>
-              <span className="srow__go" aria-hidden="true">←</span>
-            </a>
             <a className="srow" href="/orders">
               <span className="srow__icon" aria-hidden="true">🧾</span>
               <span className="srow__text">

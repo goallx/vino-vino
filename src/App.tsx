@@ -188,6 +188,7 @@ export default function App({ username }: AppProps = {}) {
         lines: state.lines,
         discounts: state.discounts.length ? state.discounts : undefined,
         deliveryFee: state.deliveryFee || undefined,
+        total,
       });
       // remember the customer by phone for next time
       recordOrder({ phone: state.phone, name: state.name, address: state.address, lines: state.lines, total });
@@ -228,7 +229,6 @@ export default function App({ username }: AppProps = {}) {
               onEditLine={(l) => setBuilder({ product: { id: l.productId } as Product, editing: l })}
               onRemoveLine={removeLine}
               onContinue={() => setPhase('checkout')}
-              onReturningCustomer={() => setPhase('checkout')}
               onNewOrder={newOrder}
               canContinue={state.lines.length > 0}
             />

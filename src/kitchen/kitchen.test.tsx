@@ -75,4 +75,11 @@ describe('kitchen board', () => {
     render(<Kitchen />);
     expect(screen.getByText(/פעמון מקולקל/)).toBeInTheDocument();
   });
+
+  it('shows the final total and a delivery fee when charged', () => {
+    publishOrder(order({ deliveryFee: 1000, total: 7900 }));
+    render(<Kitchen />);
+    expect(screen.getByText('₪79')).toBeInTheDocument();
+    expect(screen.getByText('דמי משלוח +₪10')).toBeInTheDocument();
+  });
 });

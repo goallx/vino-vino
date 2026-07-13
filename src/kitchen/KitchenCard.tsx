@@ -1,4 +1,5 @@
 import type { KitchenOrder } from '../types';
+import { shekels } from '../lib/money';
 import { KitchenLine } from './KitchenLine';
 
 interface KitchenCardProps {
@@ -25,6 +26,10 @@ export function KitchenCard({ order, now, onStart, onReady }: KitchenCardProps) 
   const typeLabel = order.type === 'delivery' ? 'משלוח' : 'איסוף';
   const itemCount = order.lines.reduce((sum, l) => sum + l.qty, 0);
   const hasDetails = order.customerName || order.phone;
+  const deliveryFee = order.deliveryFee ?? 0;
+  const snapshotSubtotal = order.lines.reduce((sum, line) => sum + line.unitPrice * line.qty, 0);
+  const snapshotDiscount = order.discounts?.reduce((sum, discount) => sum + discount.amount, 0) ?? 0;
+  const total = order.total ?? Math.max(0, snapshotSubtotal - snapshotDiscount) + deliveryFee;
 
   return (
     <article
@@ -57,6 +62,14 @@ export function KitchenCard({ order, now, onStart, onReady }: KitchenCardProps) 
       </ul>
 
       {order.note && <p className="kcard__note">“{order.note}”</p>}
+
+      <div className="kcard__price">
+        <span className="kcard__total-label">סה״כ</span>
+        <strong className="kcard__total">{shekels(total)}</strong>
+        {deliveryFee > 0 && (
+          <span className="kcard__delivery-fee">דמי משלוח +{shekels(deliveryFee)}</span>
+        )}
+      </div>
 
       <footer className="kcard__foot">
         {order.status === 'new' ? (

@@ -283,7 +283,7 @@ describe('settings modal', () => {
 
     expect(within(dialog).getByRole('link', { name: /^תפריט/ })).toHaveAttribute('href', '/menu');
     expect(within(dialog).getByRole('link', { name: /^מבצעים/ })).toHaveAttribute('href', '/deals');
-    expect(within(dialog).getByRole('link', { name: /^מסך מטבח/ })).toHaveAttribute('href', '/kitchen');
+    expect(within(dialog).queryByRole('link', { name: /^מסך מטבח/ })).not.toBeInTheDocument();
     expect(within(dialog).getByRole('link', { name: /^הזמנות/ })).toHaveAttribute('href', '/orders');
     expect(within(dialog).getByRole('link', { name: /^דוח יומי/ })).toHaveAttribute('href', '/reports');
     expect(within(dialog).queryByRole('button', { name: /יציאה/ })).not.toBeInTheDocument();

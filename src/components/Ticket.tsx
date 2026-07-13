@@ -14,7 +14,6 @@ interface TicketProps {
   onEditLine: (line: CartLine) => void;
   onRemoveLine: (line: CartLine) => void;
   onContinue: () => void;
-  onReturningCustomer: () => void;
   onNewOrder: () => void;
   canContinue: boolean;
 }
@@ -33,8 +32,16 @@ export function Ticket(props: TicketProps) {
           <p className="ticket__number" data-testid="order-number">#{String(orderNumber).padStart(2, '0')}</p>
         </div>
         <div className="ticket__head-actions">
-          <button className="btn btn--ghost btn--sm" onClick={props.onReturningCustomer}>↻ לקוח קבוע</button>
-          <button className="btn btn--ghost btn--sm" onClick={props.onNewOrder}>הזמנה חדשה</button>
+          <button
+            className="ticket__restart"
+            onClick={props.onNewOrder}
+            aria-label="התחל הזמנה מחדש"
+            title="התחל הזמנה מחדש"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7" />
+            </svg>
+          </button>
         </div>
       </header>
 
@@ -96,7 +103,7 @@ export function Ticket(props: TicketProps) {
           </span>
         </div>
         <button className="btn btn--send" disabled={!props.canContinue} onClick={props.onContinue}>
-          ← המשך לפרטי הזמנה
+          המשך לפרטי הזמנה
         </button>
       </footer>
     </aside>

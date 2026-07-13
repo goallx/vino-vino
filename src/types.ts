@@ -122,4 +122,5 @@ export interface KitchenOrder {
   lines: CartLine[];
   discounts?: AppliedBundle[]; // applied bundle deals; absent = no deal
   deliveryFee?: Money; // agorot; delivery surcharge, absent/0 = none
+  total?: Money; // final charged amount; optional for older cached orders
 }
