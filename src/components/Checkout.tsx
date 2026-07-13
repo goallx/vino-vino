@@ -5,7 +5,7 @@ import { shekels } from '../lib/money';
 import { ReorderPanel } from './ReorderPanel';
 import type { StoredCustomer, AddressSuggestion } from '../lib/customers';
 
-const DELIVERY_FEES = [1000, 1500, 2000]; // ₪10 / ₪15 / ₪20, in agorot
+const DELIVERY_FEES = [0, 1000, 1500, 2000]; // ₪0 / ₪10 / ₪15 / ₪20, in agorot
 
 interface CheckoutProps {
   state: OrderState;
@@ -166,7 +166,8 @@ export function Checkout(props: CheckoutProps) {
                     <button
                       key={f}
                       className={`deliv__pill ${state.deliveryFee === f ? 'is-active' : ''}`}
-                      onClick={() => props.onSetDeliveryFee(state.deliveryFee === f ? 0 : f)}
+                      aria-pressed={state.deliveryFee === f}
+                      onClick={() => props.onSetDeliveryFee(f)}
                     >
                       {shekels(f)}
                     </button>
