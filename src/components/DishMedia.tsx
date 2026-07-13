@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { Product } from '../types';
 import { PizzaArt } from './PizzaArt';
 
@@ -10,11 +11,11 @@ interface DishMediaProps {
  * Owner-uploaded photo (Supabase Storage) → real photo; pizza without one →
  * SVG illustration; anything else → branded placeholder tile.
  */
-export function DishMedia({ product, size = 104 }: DishMediaProps) {
+export const DishMedia = memo(function DishMedia({ product, size = 104 }: DishMediaProps) {
   if (product.photoUrl) {
     return (
       <div className="dish dish--photo">
-        <img src={product.photoUrl} alt="" loading="lazy" decoding="async" />
+        <img src={product.photoUrl} alt="" loading="lazy" decoding="async" fetchPriority="low" />
       </div>
     );
   }
@@ -35,4 +36,4 @@ export function DishMedia({ product, size = 104 }: DishMediaProps) {
       </svg>
     </div>
   );
-}
+});

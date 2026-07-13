@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
 import type { CartLine, LinePart, Product, Target, ToppingSel } from '../types';
 import { pizzaProducts, productsById, toppings, toppingsById } from '../lib/menuStore';
 import { computeUnitPrice, newLineId } from '../lib/cart';
@@ -124,16 +123,12 @@ export function PizzaBuilder({ product, editing, onCancel, onConfirm }: BuilderP
   }, [isSplit, whole, h1, h2, note]);
 
   return (
-    <motion.div className="scrim" onClick={onCancel} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
-      <motion.div
+    <div className="scrim" onClick={onCancel}>
+      <div
         className="builder builder--wide"
         role="dialog"
         aria-label={`בניית ${product.name}`}
         onClick={(e) => e.stopPropagation()}
-        initial={{ opacity: 0, scale: 0.98 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.12, ease: 'easeOut' }}
       >
         <header className="builder__head">
           <div>
@@ -196,12 +191,11 @@ export function PizzaBuilder({ product, editing, onCancel, onConfirm }: BuilderP
                 const extraIdx = extras.indexOf(t.id);
                 const charged = (on && !isDefault && extraIdx >= freeExtra) || isExtra;
                 return (
-                  <motion.button
+                  <button
                     key={t.id}
                     role="listitem"
                     className={`toprow ${on ? 'is-on' : ''} ${isExtra ? 'is-extra' : ''}`}
                     onClick={() => cycleTopping(t.id)}
-                    whileTap={{ scale: 0.98 }}
                   >
                     <span className="toprow__icon"><ToppingIcon id={t.id} size={22} /></span>
                     <span className="toprow__name">
@@ -211,7 +205,7 @@ export function PizzaBuilder({ product, editing, onCancel, onConfirm }: BuilderP
                     </span>
                     {charged && <span className="toprow__price">+{shekels(t.price)}</span>}
                     <span className="toprow__check">{isExtra ? '×2' : on ? '✓' : '+'}</span>
-                  </motion.button>
+                  </button>
                 );
               })}
             </div>
@@ -228,12 +222,12 @@ export function PizzaBuilder({ product, editing, onCancel, onConfirm }: BuilderP
         </div>
 
         <footer className="builder__foot">
-          <motion.button className="btn btn--ghost" whileTap={{ scale: 0.96 }} onClick={onCancel}>ביטול</motion.button>
-          <motion.button className="btn btn--add" whileTap={{ scale: 0.97 }} onClick={() => onConfirm(draft)}>
+          <button className="btn btn--ghost" onClick={onCancel}>ביטול</button>
+          <button className="btn btn--add" onClick={() => onConfirm(draft)}>
             {editing ? 'עדכן' : 'הוסף להזמנה'} · {shekels(draft.unitPrice)}
-          </motion.button>
+          </button>
         </footer>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }

@@ -11,6 +11,8 @@ import { supabase, isSupabaseEnabled, refetchOnAuth } from './supabase';
 // from src/test/fixtures/catalog.ts.
 
 const KEY = 'vino:bundles';
+let cachedRaw: string | null | undefined;
+let cachedBundles: Bundle[] = [];
 
 let version = 0;
 const listeners = new Set<() => void>();
@@ -51,16 +53,21 @@ if (isSupabaseEnabled && supabase) {
 export function loadBundles(): Bundle[] {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return JSON.parse(raw) as Bundle[];
+    if (raw === cachedRaw) return cachedBundles;
+    cachedRaw = raw;
+    cachedBundles = raw ? (JSON.parse(raw) as Bundle[]) : [];
   } catch {
-    /* fall through */
+    /* keep the last usable in-memory snapshot */
   }
-  return [];
+  return cachedBundles;
 }
 
 function persist(list: Bundle[]) {
+  const raw = JSON.stringify(list);
+  cachedRaw = raw;
+  cachedBundles = list;
   try {
-    localStorage.setItem(KEY, JSON.stringify(list));
+    localStorage.setItem(KEY, raw);
   } catch {
     /* storage full / unavailable — non-fatal */
   }

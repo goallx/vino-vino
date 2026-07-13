@@ -1,11 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Menu } from './components/Menu';
 import { Wordmark } from './components/Wordmark';
 import { Ticket } from './components/Ticket';
 import { Checkout } from './components/Checkout';
-import { PizzaBuilder } from './components/PizzaBuilder';
-import { SettingsModal } from './components/SettingsModal';
 import { useOrder, clearDraft } from './state/order';
 import type { CartLine, PastOrder, Product, Variant } from './types';
 import { computeUnitPrice, newLineId, wholePart } from './lib/cart';
@@ -14,6 +11,11 @@ import { productsById } from './lib/menuStore';
 import { saveOrder } from './lib/saveOrder';
 import { loadOrders, publishOrder, subscribe } from './lib/orderBus';
 import { ordersForDay } from './analytics/metrics';
+
+// These overlays are not needed for the first paint. Loading them on demand
+// keeps their editor code (and animation dependency) off the order-entry path.
+const PizzaBuilder = lazy(() => import('./components/PizzaBuilder').then((m) => ({ default: m.PizzaBuilder })));
+const SettingsModal = lazy(() => import('./components/SettingsModal').then((m) => ({ default: m.SettingsModal })));
 
 interface BuilderTarget {
   product: Product;
@@ -53,7 +55,10 @@ export default function App({ username }: AppProps = {}) {
     setOrders(loadOrders());
     return subscribe(setOrders);
   }, []);
-  const orderNumber = ordersForDay(orders).reduce((max, o) => Math.max(max, o.number), 0) + 1;
+  const orderNumber = useMemo(
+    () => ordersForDay(orders).reduce((max, o) => Math.max(max, o.number), 0) + 1,
+    [orders],
+  );
 
   // Exact phone → reorder panel
   useEffect(() => {
@@ -62,13 +67,21 @@ export default function App({ username }: AppProps = {}) {
   }, [state.phone, dismissedMatch]);
 
   // Partial phone → autocomplete suggestions (hidden once an exact match shows)
-  const suggestions = match ? [] : searchByPhonePrefix(state.phone);
+  const suggestions = useMemo(
+    () => (match ? [] : searchByPhonePrefix(state.phone)),
+    [match, state.phone],
+  );
 
   // Partial address → autocomplete from previously-saved delivery addresses
-  const addressSuggestions =
-    state.type === 'delivery'
-      ? searchByAddress(state.address).filter((s) => s.address.toLowerCase() !== state.address.trim().toLowerCase())
-      : [];
+  const addressSuggestions = useMemo(
+    () =>
+      state.type === 'delivery'
+        ? searchByAddress(state.address).filter(
+            (s) => s.address.toLowerCase() !== state.address.trim().toLowerCase(),
+          )
+        : [],
+    [state.address, state.type],
+  );
 
   // Dev-only QA helper: ?demo=builder | ?demo=order
   useEffect(() => {
@@ -84,12 +97,12 @@ export default function App({ username }: AppProps = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function flash(text: string, tone: Toast['tone'] = 'ok') {
+  const flash = useCallback((text: string, tone: Toast['tone'] = 'ok') => {
     setToast({ text, tone });
     window.setTimeout(() => setToast((t) => (t?.text === text ? null : t)), tone === 'undo' ? 4000 : 1800);
-  }
+  }, []);
 
-  function addProduct(product: Product, variant?: Variant) {
+  const addProduct = useCallback((product: Product, variant?: Variant) => {
     const line: CartLine = {
       id: newLineId(),
       productId: product.id,
@@ -103,7 +116,9 @@ export default function App({ username }: AppProps = {}) {
     line.unitPrice = computeUnitPrice(line);
     dispatch({ kind: 'addLine', line });
     flash(`${product.name} נוסף`);
-  }
+  }, [dispatch, flash]);
+
+  const openBuilder = useCallback((product: Product) => setBuilder({ product }), []);
 
   function confirmBuilder(line: CartLine) {
     if (builder?.editing) {
@@ -218,7 +233,7 @@ export default function App({ username }: AppProps = {}) {
       <main className={`stage ${phase === 'checkout' ? 'stage--checkout' : ''}`}>
         {phase === 'build' ? (
           <>
-            <Menu onAddProduct={addProduct} onOpenBuilder={(p) => setBuilder({ product: p })} />
+            <Menu onAddProduct={addProduct} onOpenBuilder={openBuilder} />
             <Ticket
               state={state}
               setQty={(id, qty) => dispatch({ kind: 'setQty', id, qty })}
@@ -258,44 +273,24 @@ export default function App({ username }: AppProps = {}) {
         )}
       </main>
 
-      <AnimatePresence>
-        {settingsOpen && (
-          <SettingsModal
-            key="settings"
-            username={username}
-            onClose={() => setSettingsOpen(false)}
-          />
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
+      <Suspense fallback={null}>
+        {settingsOpen && <SettingsModal username={username} onClose={() => setSettingsOpen(false)} />}
         {builder && (
           <PizzaBuilder
-            key="builder"
             product={resolveBuilderProduct(builder)}
             editing={builder.editing}
             onCancel={() => setBuilder(null)}
             onConfirm={confirmBuilder}
           />
         )}
-      </AnimatePresence>
+      </Suspense>
 
-      <AnimatePresence>
-        {toast && (
-          <motion.div
-            key="toast"
-            className={`toast toast--${toast.tone}`}
-            role="status"
-            initial={{ opacity: 0, y: 24, x: '50%' }}
-            animate={{ opacity: 1, y: 0, x: '50%' }}
-            exit={{ opacity: 0, y: 16, x: '50%' }}
-            transition={{ type: 'spring', stiffness: 380, damping: 28 }}
-          >
+      {toast && (
+          <div className={`toast toast--${toast.tone}`} role="status">
             <span>{toast.text}</span>
             {toast.tone === 'undo' && <button onClick={undo}>בטל</button>}
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+      )}
     </div>
   );
 }

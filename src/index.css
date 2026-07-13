@@ -61,7 +61,7 @@ input, select { font-family: inherit; }
 }
 .brand { font-family: var(--display); font-weight: 900; font-size: 26px; letter-spacing: .5px; }
 .topbar__sub { font-size: 13px; color: #d8b9a6; font-weight: 500; }
-.topbar__link { font-size: 13.5px; font-weight: 600; color: #f0c9a0; text-decoration: none; padding: 6px 12px; border: 1px solid rgba(240,201,160,.4); border-radius: 999px; }
+.topbar__link { min-height: 44px; display: inline-flex; align-items: center; font-size: 13.5px; font-weight: 600; color: #f0c9a0; text-decoration: none; padding: 6px 12px; border: 1px solid rgba(240,201,160,.4); border-radius: 999px; }
 .topbar__link:hover { background: rgba(240,201,160,.12); }
 .topbar__link--push { margin-inline-start: auto; }
 
@@ -92,6 +92,7 @@ input, select { font-family: inherit; }
 }
 .cat {
   padding: 9px 16px; border-radius: 999px;
+  min-height: 44px;
   font-size: 15px; font-weight: 600; color: var(--vino);
   background: #fff; border: 1.5px solid var(--line-strong);
   transition: transform .05s ease, background .15s ease, color .15s ease;
@@ -377,10 +378,7 @@ input, select { font-family: inherit; }
 }
 .chip:active { transform: translateY(1px); }
 .chip--lg { padding: 14px 22px; font-size: 16px; }
-.chip--on { background: #eaf1e2; border-color: var(--basil); color: var(--basil-deep); }
-.chip--paid { border-color: var(--amber); }
 .chip__price { font-size: 12px; font-weight: 700; color: var(--amber); }
-.chip--on .chip__price { color: var(--basil-deep); }
 
 /* ============================================================
    OVERLAYS — size popover + pizza builder
@@ -390,6 +388,7 @@ input, select { font-family: inherit; }
   background: rgba(42, 8, 16, .42);
   display: grid; place-items: center; padding: 24px;
 }
+.scrim { animation: fade-in .12s ease; }
 .popover-scrim { animation: fade-in .12s ease; }
 .popover { background: var(--surface); border-radius: var(--r-lg); padding: 18px; box-shadow: var(--shadow-2); min-width: 280px; animation: pop-in .14s ease; }
 @keyframes fade-in { from { opacity: 0; } }
@@ -401,6 +400,7 @@ input, select { font-family: inherit; }
   width: min(760px, 96vw); max-height: 92vh; overflow-y: auto;
   background: var(--surface); border-radius: var(--r-lg);
   box-shadow: var(--shadow-2);
+  animation: pop-in .14s ease;
 }
 .builder__head {
   display: flex; align-items: center; justify-content: space-between; gap: 14px;
@@ -412,18 +412,6 @@ input, select { font-family: inherit; }
 .layout-toggle { display: flex; background: var(--paper); border-radius: 999px; padding: 4px; }
 .layout-toggle button { padding: 9px 18px; border-radius: 999px; font-weight: 700; color: var(--ink-soft); font-size: 14.5px; }
 .layout-toggle button.is-active { background: var(--vino); color: #fff; }
-
-.halves { display: grid; grid-template-columns: 1fr; gap: 14px; padding: 18px 22px; }
-.halves--split { grid-template-columns: 1fr 1fr; }
-.half { border: 1px solid var(--line); border-radius: var(--r-md); padding: 14px; background: #fff; }
-.half__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
-.half__label { font-weight: 700; font-size: 15px; }
-.base-select {
-  border: 1.5px solid var(--line-strong); border-radius: var(--r-sm); padding: 7px 10px;
-  font-size: 14px; font-weight: 600; color: var(--vino); background: var(--surface);
-}
-.toppings { display: flex; flex-wrap: wrap; gap: 8px; }
-.half__hint { margin: 12px 0 0; font-size: 12.5px; color: var(--ink-soft); }
 
 .note-input {
   width: calc(100% - 44px); margin: 0 22px;
@@ -448,6 +436,7 @@ input, select { font-family: inherit; }
   padding: 12px 20px; border-radius: 999px;
   background: var(--vino-ink); color: #fff; font-weight: 600; font-size: 14.5px;
   box-shadow: var(--shadow-2);
+  animation: fade-in .12s ease;
 }
 .toast--ok { background: var(--basil-deep); }
 .toast--undo { background: var(--vino-ink); }
@@ -465,9 +454,6 @@ input, select { font-family: inherit; }
   .grid { grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 10px; padding: 10px; }
   .item__media { height: 108px; }
   .item__name { font-size: 15.5px; }
-}
-@media (max-width: 900px) {
-  .halves--split { grid-template-columns: 1fr; }
 }
 /* phones: stack, but cap each pane so the ticket lines never collapse */
 @media (max-width: 760px) {
@@ -698,17 +684,6 @@ input, select { font-family: inherit; }
 .rfilter__date.is-active { border-color: var(--vino); color: var(--vino); }
 .rfilter__date input { border: none; background: none; font: inherit; color: var(--ink); outline: none; }
 
-/* ---- builder live pizza preview ---- */
-.builder__preview {
-  display: grid; place-items: center;
-  padding: 16px 0 6px;
-  background: radial-gradient(circle at 50% 38%, #fff5e3 0%, var(--surface) 64%);
-  border-bottom: 1px solid var(--line);
-}
-.builder__preview .pizza-art { filter: drop-shadow(0 14px 20px rgba(140, 30, 22, .22)); }
-.chip--topping { padding-inline-start: 9px; }
-.chip--topping svg { flex: none; margin-inline-end: -1px; }
-
 /* ============================================================
    AUTH — splash + login
    ============================================================ */
@@ -734,6 +709,7 @@ input, select { font-family: inherit; }
   padding: 22px 26px 26px;
   box-shadow: var(--shadow-2);
   text-align: center;
+  animation: pop-in .16s ease;
 }
 .login__pizza { display: grid; place-items: center; margin: 2px auto 2px; filter: drop-shadow(0 10px 16px rgba(140, 30, 22, .25)); }
 .login__brand { font-family: var(--display); font-weight: 900; font-size: 34px; color: var(--vino); margin: 0; }
@@ -756,8 +732,6 @@ input, select { font-family: inherit; }
 .login__submit:hover { background: var(--basil-deep); }
 .login__submit:disabled { opacity: .7; cursor: progress; }
 .login__hint { margin: 8px 0 0; font-size: 12px; color: var(--ink-soft); opacity: .8; }
-
-.topbar__signout { cursor: pointer; }
 
 /* ============================================================
    BUILDER — tablet layout: pizza centre, toppings beside
@@ -800,6 +774,7 @@ input, select { font-family: inherit; }
   transition: background .12s ease, border-color .12s ease;
 }
 .toprow:hover { background: var(--paper-2); }
+.toprow:active { transform: translateY(1px); }
 .toprow.is-on { background: #e9f3e3; border-color: var(--basil); }
 .toprow__icon { flex: none; width: 34px; height: 34px; display: grid; place-items: center; }
 .toprow__name { flex: 1; font-weight: 700; font-size: 16.5px; min-width: 0; }
@@ -1004,11 +979,6 @@ input, select { font-family: inherit; }
    chit's perforation motif; gold = the saving.
    ============================================================ */
 
-/* deals category pill in the menu */
-.cat--deals { color: #6a4a00; background: var(--gold); border-color: var(--gold); }
-.cat--deals.is-active { background: var(--vino); color: #fff; border-color: var(--vino); }
-.grid--deals { grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); }
-
 /* coupon card (order entry + admin list share this) */
 .coupon {
   position: relative;
@@ -1076,7 +1046,6 @@ input, select { font-family: inherit; }
   padding: 14px 24px; background: var(--vino-deep); color: #f6e9d8;
 }
 .dtop__brand { font-family: var(--display); font-weight: 900; font-size: 23px; }
-.dtop__sub { font-size: 13.5px; color: #d8b9a6; }
 .dtop__nav { display: flex; gap: 24px; align-items: center; margin-inline-start: auto; }
 .dtop__nav a, .dtop__nav button { color: #f0c9a0; text-decoration: none; font-size: 13.5px; font-weight: 600; }
 .dtop__nav a:hover, .dtop__nav button:hover { color: #fff; }
@@ -1196,6 +1165,7 @@ input, select { font-family: inherit; }
 .deditor {
   width: min(560px, 96vw); max-height: 92vh; overflow-y: auto;
   background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-2);
+  animation: pop-in .14s ease;
 }
 .deditor__head {
   display: flex; align-items: center; justify-content: space-between;
@@ -1205,12 +1175,7 @@ input, select { font-family: inherit; }
 .deditor__title { margin: 0; font-family: var(--display); font-weight: 800; font-size: 24px; color: var(--vino); }
 .deditor__body { padding: 18px 22px; display: flex; flex-direction: column; gap: 16px; }
 
-/* keyboard-safe product editor: top-anchored (not vertically centred, so the
-   keyboard doesn't bury it), wide, two-column so the form is short, Save in the
-   sticky header. */
-.scrim--top { place-items: start center; padding-top: 8px; }
-.deditor--wide { width: min(920px, 96vw); }
-.deditor__head--bar .btn--send { padding: 10px 20px; }
+/* keyboard-safe product editor: two-column so the form stays short. */
 .deditor__body--grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; align-items: start; }
 .deditor__body--grid .dfield--full { grid-column: 1 / -1; }
 @media (max-width: 720px) { .deditor__body--grid { grid-template-columns: 1fr; } }
@@ -1280,6 +1245,7 @@ input, select { font-family: inherit; }
   width: min(440px, 94vw); max-height: 92vh; overflow-y: auto;
   background: var(--chit); border-radius: var(--r-lg); box-shadow: var(--shadow-2);
   display: flex; flex-direction: column;
+  animation: pop-in .14s ease;
 }
 .settings__head {
   display: flex; align-items: center; gap: 12px;
@@ -1330,5 +1296,3 @@ input, select { font-family: inherit; }
 .srow__name { font-weight: 800; font-size: 16px; }
 .srow__desc { font-size: 12.5px; color: var(--ink-soft); }
 .srow__go { margin-inline-start: auto; font-size: 14px; font-weight: 700; color: var(--ink-soft); }
-.srow--signout .srow__name { color: var(--remove); }
-.srow--signout:hover { border-color: var(--remove); }

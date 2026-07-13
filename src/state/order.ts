@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useReducer, useSyncExternalStore } from 'react';
 import type { AppliedBundle, CartLine, Money, OrderType, PaymentStatus } from '../types';
 import { orderTotals } from '../lib/cart';
 import { detectBundles, subscribeBundles, bundlesVersion } from '../lib/bundles';
@@ -130,11 +130,14 @@ export function useOrder() {
 
   // Deals apply automatically: re-derived from the cart on every change, and
   // recomputed when the owner edits a bundle (bundles load/refresh async).
-  useSyncExternalStore(subscribeBundles, bundlesVersion, bundlesVersion);
-  const discounts = detectBundles(raw.lines);
+  const bundleVersion = useSyncExternalStore(subscribeBundles, bundlesVersion, bundlesVersion);
+  const discounts = useMemo(() => detectBundles(raw.lines), [raw.lines, bundleVersion]);
   const state: OrderState = { ...raw, discounts };
 
-  const { subtotal, discount: discountTotal, total } = orderTotals(state.lines, discounts, state.deliveryFee);
+  const { subtotal, discount: discountTotal, total } = useMemo(
+    () => orderTotals(raw.lines, discounts, raw.deliveryFee),
+    [raw.deliveryFee, raw.lines, discounts],
+  );
 
   return { state, dispatch, subtotal, discountTotal, total };
 }

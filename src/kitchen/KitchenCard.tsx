@@ -15,7 +15,7 @@ function ageTier(minutes: number): 'fresh' | 'warn' | 'late' {
   return 'fresh';
 }
 
-// Plain DOM, no framer-motion: the board mutates on every "start"/"ready" tap
+// Plain DOM, no animation runtime: the board mutates on every "start"/"ready" tap
 // and refetch, so layout/exit animations here caused reflow jank and a
 // flicker on cheap tablets. Cards appear/leave instantly; a cheap opacity
 // fade-in (CSS, GPU-composited) softens new arrivals.

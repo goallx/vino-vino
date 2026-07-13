@@ -1,12 +1,12 @@
 import { lazy, Suspense } from 'react';
-import App from './App';
 import { AuthProvider, useAuth } from './auth/AuthContext';
-import { Login } from './auth/Login';
 import { Wordmark } from './components/Wordmark';
 import { ConfirmProvider } from './components/ConfirmDialog';
 
-// Secondary screens are lazy so the order-entry tablet only downloads and
-// parses the code it actually uses.
+// Every post-auth surface is lazy. The auth check stays tiny, and each tablet
+// only parses the screen it actually runs (entry, kitchen, reports, or admin).
+const App = lazy(() => import('./App'));
+const Login = lazy(() => import('./auth/Login').then((m) => ({ default: m.Login })));
 const Kitchen = lazy(() => import('./kitchen/Kitchen').then((m) => ({ default: m.Kitchen })));
 const Reports = lazy(() => import('./analytics/Reports').then((m) => ({ default: m.Reports })));
 const Orders = lazy(() => import('./orders/Orders').then((m) => ({ default: m.Orders })));

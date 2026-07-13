@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
 import type { Topping } from '../types';
 import { newToppingId, removeTopping, saveTopping, toppings } from '../lib/menuStore';
 import { shekels } from '../lib/money';
@@ -58,9 +57,7 @@ export function ToppingsAdmin({ editing, onEdit }: ToppingsAdminProps) {
         </div>
       )}
 
-      <AnimatePresence>
-        {editing && <ToppingEditor key={editing.id} initial={editing} onCancel={() => onEdit(null)} onSave={onSave} />}
-      </AnimatePresence>
+      {editing && <ToppingEditor key={editing.id} initial={editing} onCancel={() => onEdit(null)} onSave={onSave} />}
     </>
   );
 }
@@ -82,16 +79,12 @@ function ToppingEditor({ initial, onCancel, onSave }: ToppingEditorProps) {
   }
 
   return (
-    <motion.div className="scrim" onClick={onCancel} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
-      <motion.div
+    <div className="scrim" onClick={onCancel}>
+      <div
         className="deditor"
         role="dialog"
         aria-label="עריכת תוספת"
         onClick={(e) => e.stopPropagation()}
-        initial={{ scale: 0.94, opacity: 0, y: 12 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.94, opacity: 0, y: 12 }}
-        transition={{ type: 'spring', stiffness: 360, damping: 28 }}
       >
         <div className="deditor__head">
           <h2 className="deditor__title">{isNew ? 'תוספת חדשה' : 'עריכת תוספת'}</h2>
@@ -124,7 +117,7 @@ function ToppingEditor({ initial, onCancel, onSave }: ToppingEditorProps) {
             שמור תוספת
           </button>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }

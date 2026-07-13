@@ -49,5 +49,21 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        // Stable vendor chunks are cached across app-only deployments. This
+        // also lets lower-end tablets parse the bootstrap in smaller pieces.
+        manualChunks(id) {
+          if (id.includes('/node_modules/@supabase/')) return 'supabase';
+          if (
+            id.includes('/node_modules/react/') ||
+            id.includes('/node_modules/react-dom/') ||
+            id.includes('/node_modules/scheduler/')
+          ) return 'react';
+        },
+      },
+    },
+  },
   server: { host: true, port: 5173 },
 });

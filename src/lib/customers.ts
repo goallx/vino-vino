@@ -19,6 +19,8 @@ export interface StoredCustomer {
 
 const KEY = 'vino:customers';
 const digits = (s: string) => s.replace(/\D/g, '');
+let cachedRaw: string | null | undefined;
+let cachedCustomers: Record<string, StoredCustomer> = {};
 // (no bundled sample data — customers accumulate from real orders; tests seed
 // the cache from src/test/fixtures/catalog.ts)
 
@@ -60,16 +62,21 @@ if (isSupabaseEnabled) {
 export function loadCustomers(): Record<string, StoredCustomer> {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return JSON.parse(raw) as Record<string, StoredCustomer>;
+    if (raw === cachedRaw) return cachedCustomers;
+    cachedRaw = raw;
+    cachedCustomers = raw ? (JSON.parse(raw) as Record<string, StoredCustomer>) : {};
   } catch {
-    /* fall through */
+    /* keep the last usable in-memory snapshot */
   }
-  return {};
+  return cachedCustomers;
 }
 
 function save(map: Record<string, StoredCustomer>) {
+  const raw = JSON.stringify(map);
+  cachedRaw = raw;
+  cachedCustomers = map;
   try {
-    localStorage.setItem(KEY, JSON.stringify(map));
+    localStorage.setItem(KEY, raw);
   } catch {
     /* ignore */
   }

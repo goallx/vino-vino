@@ -26,19 +26,27 @@ const pendingStatuses = new Map<string, KitchenStatus>();
 
 const channel: BroadcastChannel | null =
   typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('vino-orders') : null;
+let cachedRaw: string | null | undefined;
+let cachedOrders: KitchenOrder[] = [];
 
 export function loadOrders(): KitchenOrder[] {
   try {
     const raw = localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as KitchenOrder[]) : [];
+    if (raw === cachedRaw) return cachedOrders;
+    cachedRaw = raw;
+    cachedOrders = raw ? (JSON.parse(raw) as KitchenOrder[]) : [];
   } catch {
-    return [];
+    /* keep the last usable in-memory snapshot */
   }
+  return cachedOrders;
 }
 
 function save(list: KitchenOrder[]) {
+  const raw = JSON.stringify(list);
+  cachedRaw = raw;
+  cachedOrders = list;
   try {
-    localStorage.setItem(KEY, JSON.stringify(list));
+    localStorage.setItem(KEY, raw);
   } catch {
     /* storage unavailable — non-fatal */
   }

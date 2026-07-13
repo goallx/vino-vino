@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from 'react';
+import { memo, useMemo, useState, useSyncExternalStore } from 'react';
 import type { Product, Variant } from '../types';
 import { activeProducts, categories, menuVersion, subscribeMenu } from '../lib/menuStore';
 import { shekels } from '../lib/money';
@@ -9,17 +9,20 @@ interface MenuProps {
   onOpenBuilder: (product: Product) => void;
 }
 
-export function Menu({ onAddProduct, onOpenBuilder }: MenuProps) {
+export const Menu = memo(function Menu({ onAddProduct, onOpenBuilder }: MenuProps) {
   const [pickedCat, setActiveCat] = useState<string | null>(null);
   const [variantFor, setVariantFor] = useState<Product | null>(null);
 
   // Re-render when the owner edits the menu (another tab's /deals admin). The
   // catalog loads async, so the active tab is derived: the picked one if it
   // still exists, else the first category once data lands.
-  useSyncExternalStore(subscribeMenu, menuVersion);
+  const version = useSyncExternalStore(subscribeMenu, menuVersion);
   const activeCat =
     pickedCat && categories.some((c) => c.id === pickedCat) ? pickedCat : (categories[0]?.id ?? '');
-  const visible = activeProducts().filter((p) => p.categoryId === activeCat);
+  const visible = useMemo(
+    () => activeProducts().filter((p) => p.categoryId === activeCat),
+    [activeCat, version],
+  );
 
   // Whole card → builder (pizzas) / popover (sized) / add (simple).
   function handleTap(product: Product) {
@@ -115,4 +118,4 @@ export function Menu({ onAddProduct, onOpenBuilder }: MenuProps) {
       )}
     </section>
   );
-}
+});
