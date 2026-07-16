@@ -45,7 +45,10 @@ function partToppings(base: string, selected: string[], extra: string[], size: P
   // Added toppings in tap order — the "opening price" (first starter at the
   // personal rate) is applied across them by pricedAddedToppings.
   const addedIds = selected.filter((id) => (!defaults.includes(id) || extra.includes(id)) && toppingsById[id]);
-  const prices = pricedAddedToppings(addedIds.map((id) => toppingsById[id]), size);
+  // A base/recipe starter still on the pie (e.g. Margarita's olives) already
+  // spends the single opening-price slot, so added starters bill full.
+  const baseStarterOnPizza = selected.some((id) => defaults.includes(id) && toppingsById[id]?.starter);
+  const prices = pricedAddedToppings(addedIds.map((id) => toppingsById[id]), size, baseStarterOnPizza);
   const adds = addedIds.map((id, i) => ({
     toppingId: id,
     name: toppingsById[id].name,
@@ -105,10 +108,12 @@ export function PizzaBuilder({ product, editing, onCancel, onConfirm }: BuilderP
   const freeExtra = Math.max(0, included - defaults.length);
   const extras = active.selected.filter((id) => !defaults.includes(id));
   const usedExtra = Math.max(0, extras.length - freeExtra);
-  // Which added topping fills the single "opening price" slot (first starter).
-  const starterId = active.selected.find(
-    (id) => (!defaults.includes(id) || active.extra.includes(id)) && toppingsById[id]?.starter,
-  );
+  // Which added topping fills the single "opening price" slot (first starter) —
+  // none if the pie's recipe already carries a starter (its base spends the slot).
+  const baseStarterOnPizza = active.selected.some((id) => defaults.includes(id) && toppingsById[id]?.starter);
+  const starterId = baseStarterOnPizza
+    ? undefined
+    : active.selected.find((id) => (!defaults.includes(id) || active.extra.includes(id)) && toppingsById[id]?.starter);
 
   function buildParts(): LinePart[] {
     const part = (state: HalfState, target: Target): LinePart => {

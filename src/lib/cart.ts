@@ -30,10 +30,12 @@ export function toppingPrice(t: Topping, size: PizzaSize): Money {
  * Per-portion prices for a pizza's ADDED toppings (in the order they were
  * added), applying the "opening price" rule: the first starter topping
  * (olives/corn) bills at the personal rate even on a family tray — one shared
- * slot — and everything else bills at the tray's size rate.
+ * slot — and everything else bills at the tray's size rate. Pass
+ * `slotClaimed` when the pizza's recipe already carries a starter (e.g. a
+ * Margarita's base olives), so the slot is spent and added starters bill full.
  */
-export function pricedAddedToppings(added: Topping[], size: PizzaSize): Money[] {
-  let starterClaimed = false;
+export function pricedAddedToppings(added: Topping[], size: PizzaSize, slotClaimed = false): Money[] {
+  let starterClaimed = slotClaimed;
   return added.map((t) => {
     const isStarter = !!t.starter && !starterClaimed;
     if (isStarter) starterClaimed = true;

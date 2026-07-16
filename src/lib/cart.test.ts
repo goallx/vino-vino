@@ -88,6 +88,11 @@ describe('pricedAddedToppings() — opening price', () => {
   it('changes nothing on a personal tray (already the personal rate)', () => {
     expect(pricedAddedToppings([olives, corn], 'personal')).toEqual([500, 500]);
   });
+
+  it('spends the slot on a base starter, so an added starter bills full', () => {
+    // Margarita already has olives in its recipe → adding corn is the 2nd starter
+    expect(pricedAddedToppings([corn], 'family', true)).toEqual([1000]);
+  });
 });
 
 describe('computeUnitPrice()', () => {
