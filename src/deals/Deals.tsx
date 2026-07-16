@@ -124,11 +124,23 @@ function Editor({ initial, onCancel, onSave }: EditorProps) {
   function addItem(productId: string) {
     setDraft((d) => {
       const existing = d.items.find((it) => it.productId === productId);
+      // A sized product (pizza family/personal, chips/garlic small/large) starts
+      // on its first size so the deal prices something sensible right away.
+      const variantLabel = productsById[productId]?.variants?.[0]?.label;
       const items = existing
         ? d.items.map((it) => (it.productId === productId ? { ...it, qty: it.qty + 1 } : it))
-        : [...d.items, { productId, qty: 1 }];
+        : [...d.items, { productId, qty: 1, variantLabel }];
       return { ...d, items };
     });
+  }
+
+  function setItemVariant(productId: string, variantLabel: string) {
+    setDraft((d) => ({
+      ...d,
+      items: d.items.map((it) =>
+        it.productId === productId ? { ...it, variantLabel: variantLabel || undefined } : it,
+      ),
+    }));
   }
 
   function setQty(productId: string, qty: number) {
@@ -169,6 +181,18 @@ function Editor({ initial, onCancel, onSave }: EditorProps) {
               {draft.items.map((it) => (
                 <div key={it.productId} className="ditem">
                   <span className="ditem__name">{productsById[it.productId]?.name ?? it.productId}</span>
+                  {productsById[it.productId]?.variants && (
+                    <select
+                      className="dselect ditem__size"
+                      value={it.variantLabel ?? ''}
+                      onChange={(e) => setItemVariant(it.productId, e.target.value)}
+                      aria-label={`גודל ${productsById[it.productId]?.name ?? ''}`}
+                    >
+                      {productsById[it.productId]!.variants!.map((v) => (
+                        <option key={v.id} value={v.label}>{v.label}</option>
+                      ))}
+                    </select>
+                  )}
                   <div className="stepper">
                     <button onClick={() => setQty(it.productId, it.qty - 1)} aria-label="הפחת">−</button>
                     <span>{it.qty}</span>

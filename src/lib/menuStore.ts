@@ -71,6 +71,39 @@ function rowToProduct(row: ProductRow): Product {
   };
 }
 
+interface ToppingRow {
+  id: string;
+  name: string;
+  price: number;
+  price_personal?: number | null;
+  price_family?: number | null;
+  starter?: boolean | null;
+}
+
+function rowToTopping(row: ToppingRow): Topping {
+  return {
+    id: row.id,
+    name: row.name,
+    price: row.price,
+    pricePersonal: row.price_personal ?? undefined,
+    priceFamily: row.price_family ?? undefined,
+    starter: row.starter || undefined,
+  };
+}
+
+function toppingToRow(t: Topping): ToppingRow {
+  // legacy `price` stays in sync with the personal tier for older readers.
+  const personal = t.pricePersonal ?? t.price;
+  return {
+    id: t.id,
+    name: t.name,
+    price: personal,
+    price_personal: personal,
+    price_family: t.priceFamily ?? t.price,
+    starter: !!t.starter,
+  };
+}
+
 function productToRow(p: Product, sort: number): ProductRow {
   return {
     id: p.id,
@@ -94,7 +127,7 @@ async function fetchCatalog(): Promise<void> {
   const [prodRes, catRes, topRes] = await Promise.all([
     supabase.from('products').select('*').order('sort'),
     supabase.from('categories').select('id, name').order('sort'),
-    supabase.from('toppings').select('id, name, price').order('price').order('id'),
+    supabase.from('toppings').select('id, name, price, price_personal, price_family, starter').order('price').order('id'),
   ]);
   const err = prodRes.error ?? catRes.error ?? topRes.error;
   if (err) {
@@ -111,8 +144,9 @@ async function fetchCatalog(): Promise<void> {
     replaceInPlace(categories, catRes.data as Category[]);
   }
   if (topRes.data?.length) {
-    persist(TOPPINGS_KEY, topRes.data);
-    replaceInPlace(toppings, topRes.data as Topping[]);
+    const list = (topRes.data as ToppingRow[]).map(rowToTopping);
+    persist(TOPPINGS_KEY, list);
+    replaceInPlace(toppings, list);
     for (const k of Object.keys(toppingsById)) delete toppingsById[k];
     for (const t of toppings) toppingsById[t.id] = t;
   }
@@ -247,7 +281,7 @@ export function saveTopping(topping: Topping): void {
   if (supabase) {
     void supabase
       .from('toppings')
-      .upsert(topping)
+      .upsert(toppingToRow(topping))
       .then(({ error }) => {
         if (error) console.error('[vino] failed to save topping', error);
       });

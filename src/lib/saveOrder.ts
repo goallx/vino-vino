@@ -1,5 +1,5 @@
 import type { OrderState } from '../state/order';
-import { computeUnitPrice, orderTotals } from './cart';
+import { combosAsDiscounts, computeUnitPrice, orderTotals } from './cart';
 import { supabase, isSupabaseEnabled } from './supabase';
 
 export interface SaveResult {
@@ -24,7 +24,10 @@ function isMissingDeliveryFeeColumn(error: { code?: string; message?: string } |
 }
 
 export async function saveOrder(state: OrderState, orderNumber: number): Promise<SaveResult> {
-  const { subtotal, discount, total } = orderTotals(state.lines, state.discounts, state.deliveryFee);
+  // Fold fixed-price combos into the discounts list so the saved total, the
+  // kitchen snapshot, and the reports all reflect their saving.
+  const allDiscounts = [...state.discounts, ...combosAsDiscounts(state.lines, state.combos)];
+  const { subtotal, discount, total } = orderTotals(state.lines, allDiscounts, state.deliveryFee);
 
   if (!isSupabaseEnabled || !supabase) {
     // eslint-disable-next-line no-console
@@ -50,7 +53,7 @@ export async function saveOrder(state: OrderState, orderNumber: number): Promise
     // KitchenOrder snapshot — the kitchen board and reports render these
     // directly off the row, pushed whole over realtime.
     lines: state.lines,
-    discounts: state.discounts.length ? state.discounts : null,
+    discounts: allDiscounts.length ? allDiscounts : null,
   };
 
   const insert = (payload: object) => db.from('orders').insert(payload).select('id, daily_number').single();

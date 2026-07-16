@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useReducer, useSyncExternalStore } from 'react';
-import type { AppliedBundle, CartLine, Money, OrderType, PaymentStatus } from '../types';
+import type { AppliedBundle, AppliedCombo, CartLine, Money, OrderType, PaymentStatus } from '../types';
 import { orderTotals } from '../lib/cart';
 import { detectBundles, subscribeBundles, bundlesVersion } from '../lib/bundles';
 
 export interface OrderState {
   lines: CartLine[];
   discounts: AppliedBundle[];
+  combos: AppliedCombo[]; // fixed-price deals dropped in from the מבצעים pill
   type: OrderType;
   payment: PaymentStatus;
   paymentMethod: 'cash' | 'card';
@@ -19,6 +20,7 @@ export interface OrderState {
 export const emptyOrder: OrderState = {
   lines: [],
   discounts: [],
+  combos: [],
   type: 'delivery',
   payment: 'unpaid',
   paymentMethod: 'cash',
@@ -35,8 +37,8 @@ export type Action =
   | { kind: 'setQty'; id: string; qty: number }
   | { kind: 'removeLine'; id: string }
   | { kind: 'restoreLine'; line: CartLine; index: number }
-  | { kind: 'applyBundle'; lines: CartLine[]; discount: AppliedBundle }
-  | { kind: 'removeDiscount'; uid: string }
+  | { kind: 'addCombo'; lines: CartLine[]; combo: AppliedCombo }
+  | { kind: 'removeCombo'; uid: string }
   | { kind: 'setField'; field: keyof OrderState; value: string }
   | { kind: 'setDeliveryFee'; fee: Money }
   | { kind: 'loadLines'; lines: CartLine[] }
@@ -47,7 +49,12 @@ function signature(line: CartLine): string {
   const parts = line.parts
     .map((p) => `${p.target}:${p.baseProductId}:${p.toppings.map((t) => t.action + t.toppingId).sort().join(',')}`)
     .join('|');
-  return `${line.productId}#${line.variantLabel ?? ''}#${line.isSplit ? 'S' : 'W'}#${parts}#${line.note ?? ''}`;
+  return `${line.productId}#${line.variantLabel ?? ''}#${line.isSplit ? 'S' : 'W'}#${parts}#${line.note ?? ''}#${line.bundleUid ?? ''}`;
+}
+
+/** Drop any combo whose last member line has left the cart. */
+function pruneCombos(combos: AppliedCombo[], lines: CartLine[]): AppliedCombo[] {
+  return combos.filter((c) => lines.some((l) => l.bundleUid === c.uid));
 }
 
 export function reducer(state: OrderState, action: Action): OrderState {
@@ -62,28 +69,33 @@ export function reducer(state: OrderState, action: Action): OrderState {
     }
     case 'updateLine':
       return { ...state, lines: state.lines.map((l) => (l.id === action.line.id ? action.line : l)) };
-    case 'setQty':
-      return {
-        ...state,
-        lines: state.lines.flatMap((l) =>
-          l.id === action.id ? (action.qty <= 0 ? [] : [{ ...l, qty: action.qty }]) : [l]
-        ),
-      };
-    case 'removeLine':
-      return { ...state, lines: state.lines.filter((l) => l.id !== action.id) };
+    case 'setQty': {
+      const lines = state.lines.flatMap((l) =>
+        l.id === action.id ? (action.qty <= 0 ? [] : [{ ...l, qty: action.qty }]) : [l]
+      );
+      return { ...state, lines, combos: pruneCombos(state.combos, lines) };
+    }
+    case 'removeLine': {
+      const lines = state.lines.filter((l) => l.id !== action.id);
+      return { ...state, lines, combos: pruneCombos(state.combos, lines) };
+    }
     case 'restoreLine': {
       const lines = [...state.lines];
       lines.splice(action.index, 0, action.line);
       return { ...state, lines };
     }
-    case 'applyBundle':
+    case 'addCombo':
       return {
         ...state,
         lines: [...state.lines, ...action.lines],
-        discounts: [...state.discounts, action.discount],
+        combos: [...state.combos, action.combo],
       };
-    case 'removeDiscount':
-      return { ...state, discounts: state.discounts.filter((d) => d.uid !== action.uid) };
+    case 'removeCombo':
+      return {
+        ...state,
+        combos: state.combos.filter((c) => c.uid !== action.uid),
+        lines: state.lines.filter((l) => l.bundleUid !== action.uid),
+      };
     case 'setField': {
       const next = { ...state, [action.field]: action.value };
       // A delivery fee only makes sense on delivery orders — drop it on pickup.
@@ -135,8 +147,8 @@ export function useOrder() {
   const state: OrderState = { ...raw, discounts };
 
   const { subtotal, discount: discountTotal, total } = useMemo(
-    () => orderTotals(raw.lines, discounts, raw.deliveryFee),
-    [raw.deliveryFee, raw.lines, discounts],
+    () => orderTotals(raw.lines, discounts, raw.deliveryFee, raw.combos),
+    [raw.deliveryFee, raw.lines, discounts, raw.combos],
   );
 
   return { state, dispatch, subtotal, discountTotal, total };

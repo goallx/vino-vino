@@ -94,13 +94,15 @@ describe('bundle application', () => {
     expect(lines[0].qty).toBe(2);
   });
 
-  it('returns lines plus a discount carrying the saving', () => {
-    const { lines, discount } = bundleApplication(twoVino);
+  it('returns lines plus a fixed-price combo, with the lines tagged to it', () => {
+    const { lines, combo } = bundleApplication(twoVino);
     expect(lines).toHaveLength(2);
-    expect(discount.bundleId).toBe('bnd_test');
-    expect(discount.label).toBe('זוג וינו');
-    expect(discount.amount).toBe(3000);
-    expect(discount.uid).toBeTruthy();
+    expect(combo.bundleId).toBe('bnd_test');
+    expect(combo.label).toBe('זוג וינו');
+    expect(combo.price).toBe(twoVino.price);
+    expect(combo.uid).toBeTruthy();
+    // every line carries the combo uid so it prices under the combo, not alone
+    expect(lines.every((l) => l.bundleUid === combo.uid)).toBe(true);
   });
 });
 

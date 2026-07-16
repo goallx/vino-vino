@@ -4,8 +4,9 @@ import { Wordmark } from './components/Wordmark';
 import { Ticket } from './components/Ticket';
 import { Checkout } from './components/Checkout';
 import { useOrder, clearDraft } from './state/order';
-import type { CartLine, PastOrder, Product, Variant } from './types';
-import { computeUnitPrice, newLineId, wholePart } from './lib/cart';
+import type { Bundle, CartLine, PastOrder, Product, Variant } from './types';
+import { combosAsDiscounts, computeUnitPrice, newLineId, wholePart } from './lib/cart';
+import { bundleApplication } from './lib/bundles';
 import { getByPhone, searchByPhonePrefix, searchByAddress, recordOrder, type StoredCustomer } from './lib/customers';
 import { productsById } from './lib/menuStore';
 import { saveOrder } from './lib/saveOrder';
@@ -120,6 +121,14 @@ export default function App({ username }: AppProps = {}) {
 
   const openBuilder = useCallback((product: Product) => setBuilder({ product }), []);
 
+  // Add a deal's dishes to the cart; the auto-detect (detectBundles) then
+  // applies its saving. The owner tweaks each pizza's toppings via the ticket.
+  const addBundle = useCallback((bundle: Bundle) => {
+    const { lines, combo } = bundleApplication(bundle);
+    dispatch({ kind: 'addCombo', lines, combo });
+    flash(`מבצע "${bundle.name}" נוסף`);
+  }, [dispatch, flash]);
+
   function confirmBuilder(line: CartLine) {
     if (builder?.editing) {
       dispatch({ kind: 'updateLine', line });
@@ -189,6 +198,7 @@ export default function App({ username }: AppProps = {}) {
         flash('שמירה נכשלה — נסה שוב');
         return;
       }
+      const allDiscounts = [...state.discounts, ...combosAsDiscounts(state.lines, state.combos)];
       publishOrder({
         id: `o_${Date.now()}_${orderNumber}`,
         number: result.orderNumber,
@@ -201,7 +211,7 @@ export default function App({ username }: AppProps = {}) {
         address: state.type === 'delivery' ? state.address || undefined : undefined,
         note: state.note || undefined,
         lines: state.lines,
-        discounts: state.discounts.length ? state.discounts : undefined,
+        discounts: allDiscounts.length ? allDiscounts : undefined,
         deliveryFee: state.deliveryFee || undefined,
         total,
       });
@@ -233,7 +243,7 @@ export default function App({ username }: AppProps = {}) {
       <main className={`stage ${phase === 'checkout' ? 'stage--checkout' : ''}`}>
         {phase === 'build' ? (
           <>
-            <Menu onAddProduct={addProduct} onOpenBuilder={openBuilder} />
+            <Menu onAddProduct={addProduct} onOpenBuilder={openBuilder} onAddBundle={addBundle} />
             <Ticket
               state={state}
               setQty={(id, qty) => dispatch({ kind: 'setQty', id, qty })}
@@ -243,6 +253,7 @@ export default function App({ username }: AppProps = {}) {
               orderNumber={orderNumber}
               onEditLine={(l) => setBuilder({ product: { id: l.productId } as Product, editing: l })}
               onRemoveLine={removeLine}
+              onRemoveCombo={(uid) => dispatch({ kind: 'removeCombo', uid })}
               onContinue={() => setPhase('checkout')}
               onNewOrder={newOrder}
               canContinue={state.lines.length > 0}

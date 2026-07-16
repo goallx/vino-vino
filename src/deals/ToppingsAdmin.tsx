@@ -10,7 +10,7 @@ interface ToppingsAdminProps {
 }
 
 export function blankTopping(): Topping {
-  return { id: newToppingId(), name: '', price: 0 };
+  return { id: newToppingId(), name: '', price: 0, pricePersonal: 0, priceFamily: 0 };
 }
 
 export function ToppingsAdmin({ editing, onEdit }: ToppingsAdminProps) {
@@ -45,7 +45,9 @@ export function ToppingsAdmin({ editing, onEdit }: ToppingsAdminProps) {
               <div className="mcard__head">
                 <div className="mcard__info">
                   <span className="mcard__name">{t.name}</span>
-                  <span className="mcard__price">{shekels(t.price)}</span>
+                  <span className="mcard__price">
+                    אישית {shekels(t.pricePersonal ?? t.price)} · משפחתית {shekels(t.priceFamily ?? t.price)}
+                  </span>
                 </div>
               </div>
               <div className="dcard__actions mcard__actions">
@@ -71,11 +73,21 @@ interface ToppingEditorProps {
 function ToppingEditor({ initial, onCancel, onSave }: ToppingEditorProps) {
   const [draft, setDraft] = useState<Topping>(initial);
   const isNew = !initial.name;
-  const valid = draft.name.trim().length > 0 && draft.price > 0;
+  const personal = draft.pricePersonal ?? draft.price;
+  const family = draft.priceFamily ?? draft.price;
+  const valid = draft.name.trim().length > 0 && personal > 0 && family > 0;
 
-  function setPrice(shekelText: string) {
-    const n = Math.max(0, Math.round(Number(shekelText) * 100));
-    setDraft((d) => ({ ...d, price: Number.isFinite(n) ? n : 0 }));
+  const toAgorot = (s: string) => {
+    const n = Math.max(0, Math.round(Number(s) * 100));
+    return Number.isFinite(n) ? n : 0;
+  };
+  // legacy `price` tracks the personal tier so older readers stay correct.
+  function setPersonal(s: string) {
+    const n = toAgorot(s);
+    setDraft((d) => ({ ...d, pricePersonal: n, price: n }));
+  }
+  function setFamily(s: string) {
+    setDraft((d) => ({ ...d, priceFamily: toAgorot(s) }));
   }
 
   return (
@@ -98,17 +110,38 @@ function ToppingEditor({ initial, onCancel, onSave }: ToppingEditorProps) {
           </label>
 
           <label className="dfield">
-            <span>מחיר</span>
+            <span>מחיר אישית</span>
             <div className="dprice">
               <span className="dprice__shekel">₪</span>
               <input
                 inputMode="numeric"
-                value={draft.price ? String(draft.price / 100) : ''}
+                value={draft.pricePersonal ? String(draft.pricePersonal / 100) : ''}
                 placeholder="0"
-                onChange={(e) => setPrice(e.target.value)}
+                onChange={(e) => setPersonal(e.target.value)}
               />
             </div>
           </label>
+
+          <label className="dfield">
+            <span>מחיר משפחתית</span>
+            <div className="dprice">
+              <span className="dprice__shekel">₪</span>
+              <input
+                inputMode="numeric"
+                value={draft.priceFamily ? String(draft.priceFamily / 100) : ''}
+                placeholder="0"
+                onChange={(e) => setFamily(e.target.value)}
+              />
+            </div>
+          </label>
+
+          <div className="dactive">
+            <span className="dfield"><span>מחיר פתיחה (תוספת ראשונה במחיר אישית)</span></span>
+            <div className="seg" role="group" aria-label="מחיר פתיחה">
+              <button className={draft.starter ? 'is-active seg--paid' : ''} onClick={() => setDraft({ ...draft, starter: true })}>כן</button>
+              <button className={!draft.starter ? 'is-active' : ''} onClick={() => setDraft({ ...draft, starter: undefined })}>לא</button>
+            </div>
+          </div>
         </div>
 
         <div className="deditor__foot">

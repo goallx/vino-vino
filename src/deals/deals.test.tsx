@@ -105,7 +105,7 @@ describe('menu CRUD', () => {
     );
     expect(saved.isPizza).toBe(true);
     expect(saved.splitCapable).toBe(true);
-    expect(saved.includedToppings).toBe(3);
+    expect(saved.includedToppings).toBe(1);
   });
 
   it('lets you pick base toppings for a pizza via the multi-select', async () => {

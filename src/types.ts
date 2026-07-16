@@ -4,6 +4,7 @@ export type Money = number;
 export type Target = 'whole' | 'half_1' | 'half_2';
 export type OrderType = 'delivery' | 'pickup';
 export type PaymentStatus = 'paid' | 'unpaid';
+export type PizzaSize = 'personal' | 'family'; // אישית / משפחתית — drives the per-size topping price
 
 export interface Category {
   id: string;
@@ -12,14 +13,18 @@ export interface Category {
 
 export interface Variant {
   id: string;
-  label: string; // 'קטן' / 'גדול' / '0.5'
+  label: string; // 'קטן' / 'גדול' / '0.5' / 'משפחתית' / 'אישית'
   price: Money;
+  size?: PizzaSize; // on a pizza size variant: which topping-price tier this size bills at
 }
 
 export interface Topping {
   id: string;
   name: string;
-  price: Money; // charged once the included count is used up
+  price: Money; // legacy/fallback per-portion price (= personal tier)
+  pricePersonal?: Money; // per-portion price on an אישית (personal) pizza
+  priceFamily?: Money; // per-portion price on a משפחתית (family) pizza
+  starter?: boolean; // "opening price": the FIRST starter topping on a pizza bills at the personal rate, even on family
 }
 
 export interface Product {
@@ -64,6 +69,7 @@ export interface CartLine {
   variantLabel?: string;
   parts: LinePart[]; // [whole] or [half_1, half_2]
   note?: string;
+  bundleUid?: string; // set when this line belongs to a fixed-price combo (AppliedCombo.uid)
 }
 
 export interface Customer {
@@ -77,6 +83,19 @@ export interface Customer {
 export interface BundleItem {
   productId: string;
   qty: number;
+  variantLabel?: string; // for a sized item (e.g. משפחתית / גדול) — the size to ring up
+}
+
+/**
+ * A deal added to an order as a fixed-price combo: its dishes are dropped in as
+ * normal (swappable) lines tagged with `uid`, and the order is pinned so those
+ * lines' base prices net exactly `price` — extra paid toppings still add on top.
+ */
+export interface AppliedCombo {
+  uid: string;
+  bundleId: string;
+  label: string; // snapshot of the deal name for the ticket
+  price: Money; // the fixed deal price its member lines net to
 }
 
 /** A fixed-price combo the owner builds in /deals (e.g. 2 family pizzas for ₪160). */

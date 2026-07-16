@@ -100,6 +100,26 @@ input, select { font-family: inherit; }
 .cat:hover { background: var(--paper-2); }
 .cat.is-active { background: var(--vino); color: #fff; border-color: var(--vino); }
 .cat:active { transform: translateY(1px); }
+.cat--deals { color: var(--amber); border-color: var(--amber); font-weight: 800; }
+.cat--deals.is-active { background: var(--amber); color: #fff; border-color: var(--amber); }
+
+/* deals tab — tap a coupon to drop its dishes into the order */
+.grid--deals { align-content: start; }
+.dealcard {
+  position: relative; display: flex; flex-direction: column; gap: 4px; text-align: start;
+  padding: 16px; border-radius: var(--r-md); background: #faf3df;
+  border: 1.5px solid var(--gold); cursor: pointer;
+}
+.dealcard:active { transform: translateY(1px); }
+.dealcard__badge {
+  align-self: flex-start; font-size: 11px; font-weight: 800; color: #fff;
+  background: var(--amber); border-radius: 999px; padding: 2px 10px;
+}
+.dealcard__name { font-weight: 800; font-size: 17px; color: var(--ink); }
+.dealcard__items { font-size: 12px; color: var(--ink-soft); line-height: 1.35; }
+.dealcard__foot { display: flex; align-items: baseline; gap: 8px; margin-top: 4px; }
+.dealcard__was { color: var(--ink-soft); text-decoration: line-through; font-weight: 600; font-size: 14px; }
+.dealcard__price { font-weight: 900; color: var(--vino); font-size: 20px; }
 
 .grid {
   flex: 1; min-height: 0; overflow-y: auto;
@@ -320,14 +340,38 @@ input, select { font-family: inherit; }
 /* delivery-fee pills (delivery orders only), above the send button */
 .deliv { display: flex; align-items: center; gap: 10px; margin: 10px 0 12px; }
 .deliv__label { font-size: 13px; font-weight: 700; color: var(--ink-soft); flex: none; }
-.deliv__pills { display: flex; gap: 8px; flex: 1; }
+.deliv__pills { display: flex; gap: 8px; flex: 1; flex-wrap: wrap; }
 .deliv__pill {
-  flex: 1; padding: 12px 8px; border-radius: 999px;
+  flex: 1 0 60px; padding: 12px 8px; border-radius: 999px;
   font-weight: 800; font-size: 16px; color: var(--vino);
   background: #fff; border: 1.5px solid var(--line-strong);
 }
 .deliv__pill:active { transform: translateY(1px); }
 .deliv__pill.is-active { background: var(--amber); color: #fff; border-color: var(--amber); }
+.deliv__custom {
+  flex: 1 0 90px; gap: 4px; padding: 4px 10px; border-radius: 999px;
+  background: #fff; border: 1.5px solid var(--line-strong);
+}
+.deliv__custom.is-active { border-color: var(--amber); }
+.deliv__custom .dprice__shekel { font-size: 16px; }
+.deliv__custom input {
+  width: 100%; min-width: 0; border: none; background: transparent; padding: 8px 0;
+  font-size: 16px; font-weight: 800; color: var(--vino); text-align: center;
+}
+
+/* pizza builder — family/personal size toggle */
+.seg--sizes { margin: 0 16px 4px; }
+.seg--sizes button { padding: 11px 6px; font-size: 15px; font-weight: 800; }
+.seg--sizes button.is-active { background: var(--vino); color: #fff; }
+
+/* menu admin — size/price (variant) editor */
+.vlist { display: flex; flex-direction: column; gap: 8px; }
+.vrow { display: flex; align-items: center; gap: 8px; }
+.vrow__label { flex: 1 1 auto; min-width: 0; border: 1.5px solid var(--line-strong); border-radius: var(--r-sm); padding: 12px; font-size: 16px; background: var(--paper); }
+.vrow__label:focus { border-color: var(--vino); background: #fff; outline: none; }
+.vrow__price { flex: 0 0 auto; }
+.vrow__price input { width: 90px; }
+.vrow__size { flex: 0 0 auto; }
 
 /* portrait / narrow: stack the two columns, form first */
 @media (max-width: 820px) {
@@ -1027,6 +1071,13 @@ input, select { font-family: inherit; }
 }
 .disc__name { font-weight: 800; font-size: 14.5px; min-width: 0; flex: 1; overflow-wrap: anywhere; }
 .disc__amount { font-family: var(--display); font-weight: 900; font-size: 17px; color: var(--basil-deep); flex: none; }
+.disc--combo .disc__tag { background: var(--amber); }
+.disc__x {
+  flex: none; width: 32px; height: 32px; border-radius: 999px;
+  background: #fff; border: 1.5px solid var(--line-strong); color: var(--remove);
+  font-size: 15px; font-weight: 800;
+}
+.disc__x:active { transform: translateY(1px); }
 @keyframes disc-in {
   from { opacity: 0; transform: translateY(6px) scale(0.98); }
   to   { opacity: 1; transform: none; }
@@ -1195,6 +1246,7 @@ input, select { font-family: inherit; }
   padding: 8px 8px 8px 14px;
 }
 .ditem__name { flex: 1; font-weight: 700; font-size: 15px; min-width: 0; }
+.ditem__size { flex: none; width: auto; padding: 8px 10px; font-size: 14px; }
 .ditem__x { width: 38px; height: 38px; border-radius: var(--r-sm); color: var(--remove); font-size: 16px; flex: none; }
 .ditem__x:hover { background: var(--paper); }
 .ditems__empty { color: var(--ink-soft); font-size: 14px; padding: 6px 2px; }

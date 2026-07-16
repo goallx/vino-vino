@@ -1,10 +1,44 @@
-import type { AppliedBundle, CartLine, LinePart, Money, Product } from '../types';
+import type { AppliedBundle, AppliedCombo, CartLine, LinePart, Money, PizzaSize, Product, Topping } from '../types';
 import { productsById } from './menuStore';
 
 let counter = 0;
 export function newLineId(): string {
   counter += 1;
   return `l_${Date.now().toString(36)}_${counter}`;
+}
+
+/**
+ * Which topping-price tier a line bills at. A sized pizza (family/personal
+ * variants) is decided by the chosen size variant; a single-size pizza is
+ * family by default, except an explicitly-personal base (e.g. אישית בהרכבה).
+ */
+export function sizeOfProduct(product: Product, variantLabel?: string): PizzaSize {
+  if (product.variants?.length) {
+    const v = product.variants.find((x) => x.label === variantLabel) ?? product.variants[0];
+    if (v?.size) return v.size;
+  }
+  return /אישית/.test(product.name) ? 'personal' : 'family';
+}
+
+/** Per-portion topping price for the given tray size, falling back to `price`. */
+export function toppingPrice(t: Topping, size: PizzaSize): Money {
+  const sized = size === 'family' ? t.priceFamily : t.pricePersonal;
+  return sized ?? t.price;
+}
+
+/**
+ * Per-portion prices for a pizza's ADDED toppings (in the order they were
+ * added), applying the "opening price" rule: the first starter topping
+ * (olives/corn) bills at the personal rate even on a family tray — one shared
+ * slot — and everything else bills at the tray's size rate.
+ */
+export function pricedAddedToppings(added: Topping[], size: PizzaSize): Money[] {
+  let starterClaimed = false;
+  return added.map((t) => {
+    const isStarter = !!t.starter && !starterClaimed;
+    if (isStarter) starterClaimed = true;
+    return isStarter ? toppingPrice(t, 'personal') : toppingPrice(t, size);
+  });
 }
 
 /**
@@ -26,16 +60,22 @@ function partExtraCost(part: LinePart, included: number): Money {
   return portions.slice(freeAdded).reduce((sum, p) => sum + p, 0);
 }
 
+/** A line's base (size-aware) price, before any added toppings. */
+export function lineBasePrice(line: CartLine): Money {
+  const product = productsById[line.productId];
+  if (!product) return line.unitPrice;
+  if (line.variantLabel && product.variants) {
+    const v = product.variants.find((x) => x.label === line.variantLabel);
+    if (v) return v.price;
+  }
+  return product.basePrice;
+}
+
 export function computeUnitPrice(line: CartLine): Money {
   const product = productsById[line.productId];
   if (!product) return line.unitPrice;
 
-  let base = product.basePrice;
-  if (line.variantLabel && product.variants) {
-    const v = product.variants.find((x) => x.label === line.variantLabel);
-    if (v) base = v.price;
-  }
-
+  const base = lineBasePrice(line);
   if (!product.isPizza) return base;
 
   const included = product.includedToppings ?? 0;
@@ -58,6 +98,34 @@ export function discountsTotal(discounts: AppliedBundle[]): Money {
   return discounts.reduce((sum, d) => sum + d.amount, 0);
 }
 
+/**
+ * Fixed-price combos: each combo's member lines (tagged with its uid) have
+ * their *base* prices pinned to the deal `price`, so swapping which pizzas fill
+ * the combo never changes what it costs. Paid extra toppings stay on top.
+ */
+export function combosDiscount(lines: CartLine[], combos: AppliedCombo[]): Money {
+  return combos.reduce((sum, c) => {
+    const base = lines
+      .filter((l) => l.bundleUid === c.uid)
+      .reduce((s, l) => s + lineBasePrice(l) * l.qty, 0);
+    return sum + Math.max(0, base - c.price);
+  }, 0);
+}
+
+/**
+ * Flatten fixed-price combos into the same AppliedBundle shape the auto-detect
+ * deals use — so persistence, the kitchen board, and reports all see a combo's
+ * saving uniformly (each combo's amount = its members' base minus the deal price).
+ */
+export function combosAsDiscounts(lines: CartLine[], combos: AppliedCombo[]): AppliedBundle[] {
+  return combos.map((c) => {
+    const base = lines
+      .filter((l) => l.bundleUid === c.uid)
+      .reduce((s, l) => s + lineBasePrice(l) * l.qty, 0);
+    return { uid: c.uid, bundleId: c.bundleId, label: c.label, amount: Math.max(0, base - c.price) };
+  });
+}
+
 export interface OrderTotals {
   subtotal: Money; // gross, before deals
   discount: Money; // total bundle saving
@@ -73,9 +141,10 @@ export function orderTotals(
   lines: CartLine[],
   discounts: AppliedBundle[] = [],
   deliveryFee: Money = 0,
+  combos: AppliedCombo[] = [],
 ): OrderTotals {
   const subtotal = linesSubtotal(lines);
-  const discount = discountsTotal(discounts);
+  const discount = discountsTotal(discounts) + combosDiscount(lines, combos);
   return { subtotal, discount, total: Math.max(0, subtotal - discount) + deliveryFee };
 }
 

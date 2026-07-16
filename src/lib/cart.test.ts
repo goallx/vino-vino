@@ -1,7 +1,7 @@
 import { beforeAll, describe, it, expect } from 'vitest';
 import type { CartLine, LinePart, ToppingSel } from '../types';
-import { computeUnitPrice, lineSummary, wholePart, newLineId, lineTotal, linesSubtotal, discountsTotal, orderTotals } from './cart';
-import type { AppliedBundle } from '../types';
+import { computeUnitPrice, lineSummary, wholePart, newLineId, lineTotal, linesSubtotal, discountsTotal, orderTotals, sizeOfProduct, toppingPrice, combosDiscount, pricedAddedToppings } from './cart';
+import type { AppliedBundle, Product, Topping } from '../types';
 import { productsById } from '../test/fixtures/catalog';
 import { seedCatalog } from '../test/fixtures/seed';
 
@@ -23,6 +23,72 @@ function line(partial: Partial<CartLine>): CartLine {
     ...partial,
   };
 }
+
+describe('sizeOfProduct()', () => {
+  const sized: Product = {
+    id: 'r_x', categoryId: 'pizza', name: 'פיצה איקס', basePrice: 3000, isPizza: true,
+    variants: [
+      { id: 'r_x_p', label: 'אישית', price: 3000, size: 'personal' },
+      { id: 'r_x_f', label: 'משפחתית', price: 6000, size: 'family' },
+    ],
+  };
+
+  it('reads the size from the chosen variant', () => {
+    expect(sizeOfProduct(sized, 'משפחתית')).toBe('family');
+    expect(sizeOfProduct(sized, 'אישית')).toBe('personal');
+  });
+
+  it('falls back to the first variant when no label matches', () => {
+    expect(sizeOfProduct(sized, undefined)).toBe('personal');
+  });
+
+  it('treats a single-size pizza as family, unless it is an אישית base', () => {
+    const chef: Product = { id: 'p_x', categoryId: 'chef', name: 'פיצה שף', basePrice: 9500, isPizza: true };
+    const personalBuild: Product = { id: 'b_personal', categoryId: 'build', name: 'אישית בהרכבה', basePrice: 3500, isPizza: true };
+    expect(sizeOfProduct(chef)).toBe('family');
+    expect(sizeOfProduct(personalBuild)).toBe('personal');
+  });
+});
+
+describe('toppingPrice()', () => {
+  const chicken: Topping = { id: 't_chicken', name: 'נתחי עוף', price: 1500, pricePersonal: 1500, priceFamily: 2000 };
+
+  it('picks the family or personal per-portion price', () => {
+    expect(toppingPrice(chicken, 'family')).toBe(2000);
+    expect(toppingPrice(chicken, 'personal')).toBe(1500);
+  });
+
+  it('falls back to the legacy price when a tier is missing', () => {
+    const legacy: Topping = { id: 't_legacy', name: 'ישן', price: 700 };
+    expect(toppingPrice(legacy, 'family')).toBe(700);
+    expect(toppingPrice(legacy, 'personal')).toBe(700);
+  });
+});
+
+describe('pricedAddedToppings() — opening price', () => {
+  const olives: Topping = { id: 't_olives', name: 'זיתים', price: 500, pricePersonal: 500, priceFamily: 1000, starter: true };
+  const corn: Topping = { id: 't_corn', name: 'תירס', price: 500, pricePersonal: 500, priceFamily: 1000, starter: true };
+  const mushroom: Topping = { id: 't_mushroom', name: 'פטריות', price: 500, pricePersonal: 500, priceFamily: 1000 };
+
+  it('gives the first starter the personal (₪5) rate on a family tray', () => {
+    expect(pricedAddedToppings([olives], 'family')).toEqual([500]);
+    expect(pricedAddedToppings([olives, mushroom], 'family')).toEqual([500, 1000]);
+  });
+
+  it('charges a second starter at the full family rate (one shared slot)', () => {
+    // corn first fills the slot at ₪5, olives then bills full ₪10
+    expect(pricedAddedToppings([corn, olives], 'family')).toEqual([500, 1000]);
+  });
+
+  it('gives the first starter the ₪5 rate even after a non-starter topping', () => {
+    // mushroom (₪10) then olives → olives still takes the opening slot (₪5)
+    expect(pricedAddedToppings([mushroom, olives], 'family')).toEqual([1000, 500]);
+  });
+
+  it('changes nothing on a personal tray (already the personal rate)', () => {
+    expect(pricedAddedToppings([olives, corn], 'personal')).toEqual([500, 500]);
+  });
+});
 
 describe('computeUnitPrice()', () => {
   it('prices a plain non-pizza item at its base price', () => {
@@ -163,6 +229,38 @@ describe('order totals', () => {
 
   it('treats a discount-free order as gross == net', () => {
     expect(orderTotals([coke(2)])).toEqual({ subtotal: 2000, discount: 0, total: 2000 });
+  });
+});
+
+describe('fixed-price combos', () => {
+  const combo = { uid: 'c1', bundleId: 'b', label: 'זוג משפחתיות', price: 16000 };
+  const member = (extra = false) =>
+    line({
+      productId: 'p_vino', // base ₪95, recipe fills the included allowance
+      bundleUid: 'c1',
+      parts: [
+        {
+          target: 'whole',
+          baseProductId: 'p_vino',
+          baseName: 'וינו וינו',
+          toppings: extra ? [add('t_mushroom', 'פטריות', 500)] : [],
+        },
+      ],
+    });
+
+  it('pins the tagged lines’ base prices to the deal price', () => {
+    // two ₪95 pizzas = ₪190 base, deal ₪160 → ₪30 off
+    expect(combosDiscount([member(), member()], [combo])).toBe(3000);
+    expect(orderTotals([member(), member()], [], 0, [combo]).total).toBe(16000);
+  });
+
+  it('lets paid extra toppings add on top of the fixed price', () => {
+    const totals = orderTotals([member(true), member()], [], 0, [combo]);
+    expect(totals.total).toBe(16000 + 500); // deal price + the one paid topping
+  });
+
+  it('ignores a combo with no member lines in the cart', () => {
+    expect(combosDiscount([line({ productId: 'd_coke' })], [combo])).toBe(0);
   });
 });
 

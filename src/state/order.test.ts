@@ -77,35 +77,44 @@ describe('order reducer', () => {
     expect(s).toEqual(emptyOrder);
   });
 
-  it('applies a bundle: appends its lines and a discount', () => {
-    const discount = { uid: 'ab_1', bundleId: 'bnd_test', label: 'זוג וינו', amount: 3000 };
+  it('adds a combo: appends its tagged lines and the combo record', () => {
+    const combo = { uid: 'ab_1', bundleId: 'bnd_test', label: 'זוג וינו', price: 16000 };
     const s = reducer(emptyOrder, {
-      kind: 'applyBundle',
-      lines: [mkLine({ productId: 'p_vino', qty: 2 })],
-      discount,
+      kind: 'addCombo',
+      lines: [mkLine({ productId: 'p_vino', qty: 2, bundleUid: 'ab_1' })],
+      combo,
     });
     expect(s.lines).toHaveLength(1);
-    expect(s.discounts).toEqual([discount]);
+    expect(s.combos).toEqual([combo]);
   });
 
-  it('removes a discount by uid while leaving the lines in place', () => {
+  it('removes a combo by uid together with its tagged lines', () => {
     let s = reducer(emptyOrder, {
-      kind: 'applyBundle',
-      lines: [mkLine({ productId: 'p_vino' })],
-      discount: { uid: 'ab_1', bundleId: 'bnd_test', label: 'זוג וינו', amount: 3000 },
+      kind: 'addCombo',
+      lines: [mkLine({ productId: 'p_vino', bundleUid: 'ab_1' })],
+      combo: { uid: 'ab_1', bundleId: 'bnd_test', label: 'זוג וינו', price: 16000 },
     });
-    s = reducer(s, { kind: 'removeDiscount', uid: 'ab_1' });
-    expect(s.discounts).toHaveLength(0);
-    expect(s.lines).toHaveLength(1);
+    s = reducer(s, { kind: 'removeCombo', uid: 'ab_1' });
+    expect(s.combos).toHaveLength(0);
+    expect(s.lines).toHaveLength(0);
   });
 
-  it('clears discounts on reset', () => {
+  it('prunes a combo when its last member line is removed individually', () => {
+    const combo = { uid: 'ab_1', bundleId: 'bnd_test', label: 'זוג וינו', price: 16000 };
+    const memberLine = mkLine({ productId: 'p_vino', bundleUid: 'ab_1' });
+    let s = reducer(emptyOrder, { kind: 'addCombo', lines: [memberLine], combo });
+    s = reducer(s, { kind: 'removeLine', id: memberLine.id });
+    expect(s.lines).toHaveLength(0);
+    expect(s.combos).toHaveLength(0);
+  });
+
+  it('clears combos on reset', () => {
     let s = reducer(emptyOrder, {
-      kind: 'applyBundle',
-      lines: [mkLine()],
-      discount: { uid: 'ab_1', bundleId: 'b', label: 'x', amount: 100 },
+      kind: 'addCombo',
+      lines: [mkLine({ bundleUid: 'ab_1' })],
+      combo: { uid: 'ab_1', bundleId: 'b', label: 'x', price: 100 },
     });
     s = reducer(s, { kind: 'reset' });
-    expect(s.discounts).toHaveLength(0);
+    expect(s.combos).toHaveLength(0);
   });
 });

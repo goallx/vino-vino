@@ -5,7 +5,7 @@ import { shekels } from '../lib/money';
 import { ReorderPanel } from './ReorderPanel';
 import type { StoredCustomer, AddressSuggestion } from '../lib/customers';
 
-const DELIVERY_FEES = [0, 1000, 1500, 2000]; // ₪0 / ₪10 / ₪15 / ₪20, in agorot
+const DELIVERY_FEES = [0, 1000, 1500, 2000, 2500, 3000]; // ₪0 / ₪10 / ₪15 / ₪20 / ₪25 / ₪30, in agorot
 
 interface CheckoutProps {
   state: OrderState;
@@ -172,6 +172,19 @@ export function Checkout(props: CheckoutProps) {
                       {shekels(f)}
                     </button>
                   ))}
+                  <div className={`deliv__custom dprice ${!DELIVERY_FEES.includes(state.deliveryFee) ? 'is-active' : ''}`}>
+                    <span className="dprice__shekel">₪</span>
+                    <input
+                      inputMode="numeric"
+                      placeholder="אחר"
+                      aria-label="דמי משלוח אחר"
+                      value={state.deliveryFee && !DELIVERY_FEES.includes(state.deliveryFee) ? String(state.deliveryFee / 100) : ''}
+                      onChange={(e) => {
+                        const n = Math.max(0, Math.round(Number(e.target.value) * 100));
+                        props.onSetDeliveryFee(Number.isFinite(n) ? n : 0);
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
             )}

@@ -1,27 +1,37 @@
 import { memo, useMemo, useState, useSyncExternalStore } from 'react';
-import type { Product, Variant } from '../types';
-import { activeProducts, categories, menuVersion, subscribeMenu } from '../lib/menuStore';
+import type { Bundle, Product, Variant } from '../types';
+import { activeProducts, categories, menuVersion, productsById, subscribeMenu } from '../lib/menuStore';
+import { bundleSaving, bundlesVersion, listActiveBundles, subscribeBundles } from '../lib/bundles';
 import { shekels } from '../lib/money';
 import { DishMedia } from './DishMedia';
+
+// A pseudo-category id for the deals tab (not a real menu category).
+const DEALS_CAT = '__deals__';
 
 interface MenuProps {
   onAddProduct: (product: Product, variant?: Variant) => void;
   onOpenBuilder: (product: Product) => void;
+  onAddBundle: (bundle: Bundle) => void;
 }
 
-export const Menu = memo(function Menu({ onAddProduct, onOpenBuilder }: MenuProps) {
+export const Menu = memo(function Menu({ onAddProduct, onOpenBuilder, onAddBundle }: MenuProps) {
   const [pickedCat, setActiveCat] = useState<string | null>(null);
   const [variantFor, setVariantFor] = useState<Product | null>(null);
 
-  // Re-render when the owner edits the menu (another tab's /deals admin). The
-  // catalog loads async, so the active tab is derived: the picked one if it
+  // Re-render when the owner edits the menu or deals (another tab's /deals admin).
+  // The catalog loads async, so the active tab is derived: the picked one if it
   // still exists, else the first category once data lands.
   const version = useSyncExternalStore(subscribeMenu, menuVersion);
+  const bundleVersion = useSyncExternalStore(subscribeBundles, bundlesVersion, bundlesVersion);
+  const bundles = useMemo(() => listActiveBundles(), [bundleVersion]);
   const activeCat =
-    pickedCat && categories.some((c) => c.id === pickedCat) ? pickedCat : (categories[0]?.id ?? '');
+    pickedCat && (pickedCat === DEALS_CAT || categories.some((c) => c.id === pickedCat))
+      ? pickedCat
+      : (categories[0]?.id ?? '');
+  const showDeals = activeCat === DEALS_CAT;
   const visible = useMemo(
-    () => activeProducts().filter((p) => p.categoryId === activeCat),
-    [activeCat, version],
+    () => (showDeals ? [] : activeProducts().filter((p) => p.categoryId === activeCat)),
+    [activeCat, showDeals, version],
   );
 
   // Whole card → builder (pizzas) / popover (sized) / add (simple).
@@ -49,8 +59,37 @@ export const Menu = memo(function Menu({ onAddProduct, onOpenBuilder }: MenuProp
             {c.name}
           </button>
         ))}
+        {bundles.length > 0 && (
+          <button
+            className={`cat cat--deals ${showDeals ? 'is-active' : ''}`}
+            onClick={() => setActiveCat(DEALS_CAT)}
+          >
+            🏷️ מבצעים
+          </button>
+        )}
       </nav>
 
+      {showDeals ? (
+        <div className="grid grid--deals" key="deals">
+          {bundles.map((b) => {
+            const saving = bundleSaving(b);
+            const items = b.items
+              .map((it) => `${it.qty}× ${productsById[it.productId]?.name ?? '—'}`)
+              .join(' + ');
+            return (
+              <button key={b.id} className="dealcard" onClick={() => onAddBundle(b)}>
+                <span className="dealcard__badge">מבצע</span>
+                <span className="dealcard__name">{b.name}</span>
+                {items && <span className="dealcard__items">{items}</span>}
+                <span className="dealcard__foot">
+                  {saving > 0 && <span className="dealcard__was">{shekels(b.price + saving)}</span>}
+                  <span className="dealcard__price">{shekels(b.price)}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
       <div className="grid" key={activeCat}>
         {visible.map((p) => (
           <div
@@ -88,6 +127,7 @@ export const Menu = memo(function Menu({ onAddProduct, onOpenBuilder }: MenuProp
           </div>
         ))}
       </div>
+      )}
 
       {variantFor && (
         <div className="popover-scrim" onClick={() => setVariantFor(null)}>

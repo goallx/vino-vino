@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Product } from '../types';
+import type { PizzaSize, Product, Variant } from '../types';
 import { categories, newProductId, products, removeProduct, saveProduct, toppings } from '../lib/menuStore';
 import { uploadProductPhoto, removeProductPhoto } from '../lib/photos';
 import { shekels } from '../lib/money';
@@ -17,7 +17,7 @@ export function blankProduct(): Product {
 
 /** Pizzas gain the builder defaults; toggling one back strips them. */
 function normalize(p: Product): Product {
-  if (p.isPizza) return { splitCapable: true, includedToppings: 3, art: [], ...p };
+  if (p.isPizza) return { splitCapable: true, includedToppings: 1, art: [], ...p };
   const rest = { ...p };
   delete rest.isPizza;
   delete rest.splitCapable;
@@ -115,11 +115,49 @@ function ProductEditor({ initial, onCancel, onSave, row }: ProductEditorProps) {
   const [draft, setDraft] = useState<Product>(initial);
   const [uploading, setUploading] = useState(false);
   const isNew = !initial.name;
-  const valid = draft.name.trim().length > 0 && draft.basePrice > 0 && !uploading;
+
+  const variants = draft.variants ?? [];
+  const hasVariants = variants.length > 0;
+  const variantsOk = variants.every((v) => v.label.trim().length > 0 && v.price > 0);
+  const valid =
+    draft.name.trim().length > 0 &&
+    !uploading &&
+    (hasVariants ? variantsOk : draft.basePrice > 0);
 
   function setPrice(shekelText: string) {
     const n = Math.max(0, Math.round(Number(shekelText) * 100));
     setDraft((d) => ({ ...d, basePrice: Number.isFinite(n) ? n : 0 }));
+  }
+
+  const toAgorot = (s: string) => {
+    const n = Math.max(0, Math.round(Number(s) * 100));
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  function setVariant(i: number, patch: Partial<Variant>) {
+    setDraft((d) => {
+      const next = [...(d.variants ?? [])];
+      next[i] = { ...next[i], ...patch };
+      return { ...d, variants: next };
+    });
+  }
+
+  function addVariant() {
+    const id = `v_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+    setDraft((d) => ({ ...d, variants: [...(d.variants ?? []), { id, label: '', price: 0 }] }));
+  }
+
+  function removeVariant(i: number) {
+    setDraft((d) => {
+      const next = (d.variants ?? []).filter((_, j) => j !== i);
+      return { ...d, variants: next.length ? next : undefined };
+    });
+  }
+
+  // Sized items price "from" their cheapest size, so keep basePrice in sync.
+  function submit() {
+    const d = hasVariants ? { ...draft, basePrice: draft.variants![0].price } : draft;
+    onSave(d);
   }
 
   async function onPickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
@@ -146,7 +184,7 @@ function ProductEditor({ initial, onCancel, onSave, row }: ProductEditorProps) {
         <h2 className="peditor__title">{isNew ? 'פריט חדש' : 'עריכת פריט'}</h2>
         <div className="peditor__actions">
           <button className="btn btn--ghost btn--sm" onClick={onCancel}>ביטול</button>
-          <button className="btn btn--send btn--sm" disabled={!valid} onClick={() => onSave(draft)}>
+          <button className="btn btn--send btn--sm" disabled={!valid} onClick={submit}>
             שמור פריט
           </button>
         </div>
@@ -216,6 +254,46 @@ function ProductEditor({ initial, onCancel, onSave, row }: ProductEditorProps) {
               {draft.photoUrl && !uploading && (
                 <button className="btn btn--ghost btn--sm" onClick={onRemovePhoto}>הסרה</button>
               )}
+            </div>
+          </div>
+
+          <div className="dfield dfield--full">
+            <span>גדלים / מחירים (רשות — למשל משפחתית / אישית)</span>
+            <div className="vlist">
+              {variants.map((v, i) => (
+                <div className="vrow" key={v.id}>
+                  <input
+                    type="text"
+                    className="vrow__label"
+                    placeholder="שם הגודל (משפחתית)"
+                    value={v.label}
+                    onChange={(e) => setVariant(i, { label: e.target.value })}
+                  />
+                  <div className="dprice vrow__price">
+                    <span className="dprice__shekel">₪</span>
+                    <input
+                      inputMode="numeric"
+                      placeholder="0"
+                      value={v.price ? String(v.price / 100) : ''}
+                      onChange={(e) => setVariant(i, { price: toAgorot(e.target.value) })}
+                    />
+                  </div>
+                  {draft.isPizza && (
+                    <select
+                      className="dselect vrow__size"
+                      value={v.size ?? ''}
+                      onChange={(e) => setVariant(i, { size: (e.target.value || undefined) as PizzaSize | undefined })}
+                      aria-label="תמחור תוספות לפי גודל"
+                    >
+                      <option value="">— תוספות</option>
+                      <option value="family">תוספות משפחתית</option>
+                      <option value="personal">תוספות אישית</option>
+                    </select>
+                  )}
+                  <button className="dcard__del" onClick={() => removeVariant(i)} aria-label="מחק גודל">🗑</button>
+                </div>
+              ))}
+              <button className="btn btn--ghost btn--sm" onClick={addVariant}>+ הוסף גודל</button>
             </div>
           </div>
 

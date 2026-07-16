@@ -1,6 +1,6 @@
 import type { CartLine } from '../types';
 import type { OrderState } from '../state/order';
-import { computeUnitPrice, lineSummary } from '../lib/cart';
+import { computeUnitPrice, lineBasePrice, lineSummary } from '../lib/cart';
 import { shekels } from '../lib/money';
 import { DishThumb } from './DishThumb';
 
@@ -13,6 +13,7 @@ interface TicketProps {
   orderNumber: number;
   onEditLine: (line: CartLine) => void;
   onRemoveLine: (line: CartLine) => void;
+  onRemoveCombo: (uid: string) => void;
   onContinue: () => void;
   onNewOrder: () => void;
   canContinue: boolean;
@@ -73,6 +74,21 @@ export function Ticket(props: TicketProps) {
                   <button onClick={() => props.onRemoveLine(l)} aria-label="מחק">🗑</button>
                 </div>
               </div>
+            </div>
+          );
+        })}
+
+        {state.combos.map((c) => {
+          const base = state.lines
+            .filter((l) => l.bundleUid === c.uid)
+            .reduce((s, l) => s + lineBasePrice(l) * l.qty, 0);
+          const saving = Math.max(0, base - c.price);
+          return (
+            <div key={c.uid} className="disc disc--combo" role="listitem">
+              <span className="disc__tag">מבצע</span>
+              <span className="disc__name">{c.label} · {shekels(c.price)}</span>
+              {saving > 0 && <span className="disc__amount">−{shekels(saving)}</span>}
+              <button className="disc__x" onClick={() => props.onRemoveCombo(c.uid)} aria-label={`הסר מבצע ${c.label}`}>✕</button>
             </div>
           );
         })}

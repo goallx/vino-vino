@@ -1,4 +1,4 @@
-import type { AppliedBundle, Bundle, CartLine, Money } from '../types';
+import type { AppliedBundle, AppliedCombo, Bundle, CartLine, Money } from '../types';
 import { productsById } from './menuStore';
 import { computeUnitPrice, newLineId, wholePart } from './cart';
 import { supabase, isSupabaseEnabled, refetchOnAuth } from './supabase';
@@ -120,7 +120,9 @@ export function newBundleId(): string {
 export function bundleGross(bundle: Bundle): Money {
   return bundle.items.reduce((sum, it) => {
     const p = productsById[it.productId];
-    return sum + (p ? p.basePrice * it.qty : 0);
+    if (!p) return sum;
+    const v = it.variantLabel && p.variants?.find((x) => x.label === it.variantLabel);
+    return sum + (v ? v.price : p.basePrice) * it.qty;
   }, 0);
 }
 
@@ -135,7 +137,7 @@ export function bundleSaving(bundle: Bundle): Money {
  * individually — toppings / half-half — via the ticket's edit (✎) button.
  * Non-pizza items stay as a single line carrying their quantity.
  */
-export function buildBundleLines(bundle: Bundle): CartLine[] {
+export function buildBundleLines(bundle: Bundle, uid?: string): CartLine[] {
   const lines: CartLine[] = [];
   for (const it of bundle.items) {
     const product = productsById[it.productId];
@@ -150,7 +152,9 @@ export function buildBundleLines(bundle: Bundle): CartLine[] {
         qty: perLineQty,
         unitPrice: 0,
         isSplit: false,
+        variantLabel: it.variantLabel,
         parts: product.isPizza ? [wholePart(product)] : [],
+        bundleUid: uid,
       };
       line.unitPrice = computeUnitPrice(line);
       lines.push(line);
@@ -159,16 +163,16 @@ export function buildBundleLines(bundle: Bundle): CartLine[] {
   return lines;
 }
 
-/** Everything needed to drop a bundle into an order: its lines + the discount. */
-export function bundleApplication(bundle: Bundle): { lines: CartLine[]; discount: AppliedBundle } {
+/**
+ * Everything needed to drop a deal into an order as a fixed-price combo: its
+ * dishes (tagged with the combo's uid) plus the combo record that pins them to
+ * the deal price. The lines stay swappable; the price holds.
+ */
+export function bundleApplication(bundle: Bundle): { lines: CartLine[]; combo: AppliedCombo } {
+  const uid = `ab_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
   return {
-    lines: buildBundleLines(bundle),
-    discount: {
-      uid: `ab_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
-      bundleId: bundle.id,
-      label: bundle.name,
-      amount: bundleSaving(bundle),
-    },
+    lines: buildBundleLines(bundle, uid),
+    combo: { uid, bundleId: bundle.id, label: bundle.name, price: bundle.price },
   };
 }
 
@@ -220,11 +224,15 @@ function claimBundle(
  * Deals that wouldn't save anything for these lines are skipped.
  */
 export function detectBundles(lines: CartLine[], bundles: Bundle[] = listActiveBundles()): AppliedBundle[] {
-  const pool: PoolUnit[] = lines.map((l) => ({
-    productId: l.productId,
-    price: computeUnitPrice(l),
-    remaining: l.qty,
-  }));
+  // Lines that belong to a fixed-price combo are already priced by that combo —
+  // never let auto-detect claim them for a second deal.
+  const pool: PoolUnit[] = lines
+    .filter((l) => !l.bundleUid)
+    .map((l) => ({
+      productId: l.productId,
+      price: computeUnitPrice(l),
+      remaining: l.qty,
+    }));
   const applied: AppliedBundle[] = [];
   for (const bundle of bundles) {
     if (bundle.items.length === 0) continue;
