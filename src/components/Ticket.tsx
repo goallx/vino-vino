@@ -1,6 +1,6 @@
 import type { CartLine } from '../types';
 import type { OrderState } from '../state/order';
-import { computeUnitPrice, lineBasePrice, lineSummary } from '../lib/cart';
+import { computeUnitPrice, isEditableLine, lineBasePrice, lineSummary } from '../lib/cart';
 import { shekels } from '../lib/money';
 import { DishThumb } from './DishThumb';
 
@@ -70,7 +70,9 @@ export function Ticket(props: TicketProps) {
                   <button onClick={() => setQty(l.id, l.qty + 1)} aria-label="הוסף">+</button>
                 </div>
                 <div className="line__tools">
-                  <button onClick={() => props.onEditLine(l)} aria-label="ערוך">✎ עריכה</button>
+                  {isEditableLine(l) && (
+                    <button onClick={() => props.onEditLine(l)} aria-label="ערוך">✎ עריכה</button>
+                  )}
                   <button onClick={() => props.onRemoveLine(l)} aria-label="מחק">🗑</button>
                 </div>
               </div>

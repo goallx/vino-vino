@@ -16,7 +16,12 @@ import { ordersForDay } from './analytics/metrics';
 // These overlays are not needed for the first paint. Loading them on demand
 // keeps their editor code (and animation dependency) off the order-entry path.
 const PizzaBuilder = lazy(() => import('./components/PizzaBuilder').then((m) => ({ default: m.PizzaBuilder })));
+const SaladBuilder = lazy(() => import('./components/SaladBuilder').then((m) => ({ default: m.SaladBuilder })));
 const SettingsModal = lazy(() => import('./components/SettingsModal').then((m) => ({ default: m.SettingsModal })));
+
+// Salads open a dedicated editor (base removals + seasoning + extras) instead
+// of the pizza builder.
+const isSaladProduct = (p: Product): boolean => p.categoryId === 'salads';
 
 interface BuilderTarget {
   product: Product;
@@ -112,7 +117,7 @@ export default function App({ username }: AppProps = {}) {
       unitPrice: 0,
       isSplit: false,
       variantLabel: variant?.label,
-      parts: product.isPizza ? [wholePart(product)] : [],
+      parts: product.isPizza || isSaladProduct(product) ? [wholePart(product)] : [],
     };
     line.unitPrice = computeUnitPrice(line);
     dispatch({ kind: 'addLine', line });
@@ -286,14 +291,21 @@ export default function App({ username }: AppProps = {}) {
 
       <Suspense fallback={null}>
         {settingsOpen && <SettingsModal username={username} onClose={() => setSettingsOpen(false)} />}
-        {builder && (
+        {builder && (isSaladProduct(resolveBuilderProduct(builder)) ? (
+          <SaladBuilder
+            product={resolveBuilderProduct(builder)}
+            editing={builder.editing}
+            onCancel={() => setBuilder(null)}
+            onConfirm={confirmBuilder}
+          />
+        ) : (
           <PizzaBuilder
             product={resolveBuilderProduct(builder)}
             editing={builder.editing}
             onCancel={() => setBuilder(null)}
             onConfirm={confirmBuilder}
           />
-        )}
+        ))}
       </Suspense>
 
       {toast && (

@@ -8,6 +8,7 @@ interface PizzaArtProps {
   split?: boolean;
   size?: number;
   focus?: 'half_1' | 'half_2'; // dim the other half (builder editing)
+  onPickHalf?: (half: 'half_1' | 'half_2') => void; // tap a half to edit it
 }
 
 const C = 100;
@@ -64,11 +65,12 @@ function marksFor(
   return out;
 }
 
-export const PizzaArt = memo(function PizzaArt({ whole, left, right, split = false, size = 120, focus }: PizzaArtProps) {
+export const PizzaArt = memo(function PizzaArt({ whole, left, right, split = false, size = 120, focus, onPickHalf }: PizzaArtProps) {
   const marks = marksFor(whole, left, right, split, size < 200);
+  const interactive = split && !!onPickHalf;
 
   return (
-    <svg width={size} height={size} viewBox="0 0 200 200" className="pizza-art" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 200 200" className="pizza-art" aria-hidden={interactive ? undefined : true}>
       <defs>
         <radialGradient id="crust" cx="50%" cy="42%" r="62%">
           <stop offset="70%" stopColor="#eabf6a" />
@@ -103,6 +105,24 @@ export const PizzaArt = memo(function PizzaArt({ whole, left, right, split = fal
             fill="#fffdf8"
             opacity="0.5"
           />
+        )}
+
+        {/* tap a half to edit it (half_1 = left, half_2 = right) */}
+        {interactive && (
+          <>
+            <rect
+              x="6" y="6" width="94" height="188" rx="4" fill="transparent"
+              role="button" aria-label="עריכת חצי 1"
+              style={{ cursor: 'pointer' }}
+              onClick={() => onPickHalf!('half_1')}
+            />
+            <rect
+              x="100" y="6" width="94" height="188" rx="4" fill="transparent"
+              role="button" aria-label="עריכת חצי 2"
+              style={{ cursor: 'pointer' }}
+              onClick={() => onPickHalf!('half_2')}
+            />
+          </>
         )}
       </g>
     </svg>

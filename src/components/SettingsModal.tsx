@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { ShiftSummaryModal } from './ShiftSummaryModal';
 
 interface SettingsModalProps {
   username?: string;
@@ -12,6 +13,8 @@ interface SettingsModalProps {
  * stray one is easy to lose); the in-progress order is autosaved as a draft.
  */
 export function SettingsModal({ username, onClose }: SettingsModalProps) {
+  const [shiftOpen, setShiftOpen] = useState(false);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -78,8 +81,22 @@ export function SettingsModal({ username, onClose }: SettingsModalProps) {
               <span className="srow__go" aria-hidden="true">←</span>
             </a>
           </section>
+
+          <section className="sgroup" aria-label="קופה">
+            <h3 className="sgroup__label">קופה</h3>
+            <button type="button" className="srow" onClick={() => setShiftOpen(true)}>
+              <span className="srow__icon" aria-hidden="true">💰</span>
+              <span className="srow__text">
+                <span className="srow__name">סגירת משמרת</span>
+                <span className="srow__desc">סיכום הכנסות ותשלום לשליח</span>
+              </span>
+              <span className="srow__go" aria-hidden="true">←</span>
+            </button>
+          </section>
         </div>
       </div>
+
+      {shiftOpen && <ShiftSummaryModal onClose={() => setShiftOpen(false)} />}
     </div>
   );
 }

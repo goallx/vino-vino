@@ -78,7 +78,16 @@ export function computeUnitPrice(line: CartLine): Money {
   if (!product) return line.unitPrice;
 
   const base = lineBasePrice(line);
-  if (!product.isPizza) return base;
+  if (!product.isPizza) {
+    // Non-pizza dishes (e.g. salads) charge each added extra directly; base
+    // ingredients and free toggles (seasoning) carry price 0, so they add nothing.
+    const extras = line.parts.reduce(
+      (sum, part) =>
+        sum + part.toppings.reduce((s, t) => (t.action === 'add' ? s + t.price * (t.qty ?? 1) : s), 0),
+      0,
+    );
+    return base + extras;
+  }
 
   const included = product.includedToppings ?? 0;
   const extras = line.parts.reduce((sum, part) => sum + partExtraCost(part, included), 0);
@@ -155,6 +164,15 @@ export function wholePart(product: Product): LinePart {
   return { target: 'whole', baseProductId: product.id, baseName: product.name, toppings: [] };
 }
 
+// Only pizzas, salads and meat meals are customizable — drinks, desserts and
+// sides are added as-is with no edit page.
+const EDITABLE_CATEGORIES = new Set(['salads', 'meat']);
+export function isEditableLine(line: CartLine): boolean {
+  const p = productsById[line.productId];
+  if (!p) return false;
+  return !!p.isPizza || EDITABLE_CATEGORIES.has(p.categoryId);
+}
+
 function partToppingText(part: LinePart): string {
   const adds = part.toppings
     .filter((t) => t.action === 'add')
@@ -167,7 +185,11 @@ function partToppingText(part: LinePart): string {
 export function lineSummary(line: CartLine): string {
   const product = productsById[line.productId];
   if (product && !product.isPizza) {
-    return line.variantLabel ?? '';
+    // Salads and other customizable dishes carry their removals/extras on the
+    // whole part; show them next to any size label.
+    const whole = line.parts[0];
+    const toppingText = whole ? partToppingText(whole) : '';
+    return [line.variantLabel, toppingText].filter(Boolean).join(' · ');
   }
   if (!line.isSplit) {
     const whole = line.parts[0];

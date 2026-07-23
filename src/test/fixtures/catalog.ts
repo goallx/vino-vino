@@ -58,12 +58,12 @@ export const products: Product[] = [
   { id: 's_schnitzel', categoryId: 'sides', name: 'שניצלונים', basePrice: 8500 },
   { id: 's_scaloppine', categoryId: 'sides', name: 'סקלופיני עוף', basePrice: 9000 },
 
-  // --- salads ---
-  { id: 'sl_chicken', categoryId: 'salads', name: 'סלט עוף', basePrice: 7500 },
-  { id: 'sl_greek', categoryId: 'salads', name: 'סלט יווני', basePrice: 5000 },
-  { id: 'sl_italian', categoryId: 'salads', name: 'סלט איטלקי', basePrice: 5000 },
-  { id: 'sl_tuna', categoryId: 'salads', name: 'סלט טונה', basePrice: 5000 },
-  { id: 'sl_chopped', categoryId: 'salads', name: 'סלט ירקות קצוץ', basePrice: 4000 },
+  // --- salads --- (art = the salad's own toppings, offered as paid extras)
+  { id: 'sl_chicken', categoryId: 'salads', name: 'סלט עוף', basePrice: 7500, art: ['t_onion', 't_pepper', 't_chicken'] },
+  { id: 'sl_greek', categoryId: 'salads', name: 'סלט יווני', basePrice: 5000, art: ['t_onion', 't_bulgarit'] },
+  { id: 'sl_italian', categoryId: 'salads', name: 'סלט איטלקי', basePrice: 5000, art: ['t_tuna', 't_mushroom'] },
+  { id: 'sl_tuna', categoryId: 'salads', name: 'סלט טונה', basePrice: 5000, art: ['t_tuna', 't_corn', 't_olives'] },
+  { id: 'sl_chopped', categoryId: 'salads', name: 'סלט ירקות קצוץ', basePrice: 4000, art: ['t_onion'] },
 
   // --- drinks ---
   { id: 'd_water', categoryId: 'drinks', name: 'מים מינרליים 0.5', basePrice: 800 },

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { CartLine, LinePart, PizzaSize, Product, Target, ToppingSel } from '../types';
 import { pizzaProducts, productsById, toppings, toppingsById } from '../lib/menuStore';
 import { computeUnitPrice, newLineId, pricedAddedToppings, sizeOfProduct, toppingPrice } from '../lib/cart';
@@ -69,6 +69,12 @@ export function PizzaBuilder({ product, editing, onCancel, onConfirm }: BuilderP
   const [isSplit, setSplit] = useState(editing?.isSplit ?? false);
   const [activeHalf, setActiveHalf] = useState<'half_1' | 'half_2'>('half_1');
   const [note, setNote] = useState(editing?.note ?? '');
+  const [noteOpen, setNoteOpen] = useState(!!editing?.note?.trim());
+  const noteRef = useRef<HTMLTextAreaElement>(null);
+  function openNote() {
+    setNoteOpen(true);
+    setTimeout(() => noteRef.current?.focus(), 0);
+  }
   // Family/personal size — decides both the base price and the topping tier.
   const [variantLabel, setVariantLabel] = useState<string | undefined>(
     editing?.variantLabel ?? sizeVariants[0]?.label,
@@ -97,17 +103,12 @@ export function PizzaBuilder({ product, editing, onCancel, onConfirm }: BuilderP
     }
   }
 
-  function chooseBase(id: string) {
-    setActive({ baseProductId: id, selected: [...artOf(id)], extra: [] });
-  }
-
   // toppings that are extras (not part of the base) — these are what gets charged.
   // The base toppings are already in the price, so they consume the free
   // allowance first: only `included − baseCount` further toppings stay free.
   const defaults = artOf(active.baseProductId);
   const freeExtra = Math.max(0, included - defaults.length);
   const extras = active.selected.filter((id) => !defaults.includes(id));
-  const usedExtra = Math.max(0, extras.length - freeExtra);
   // Which added topping fills the single "opening price" slot (first starter) —
   // none if the pie's recipe already carries a starter (its base spends the slot).
   const baseStarterOnPizza = active.selected.some((id) => defaults.includes(id) && toppingsById[id]?.starter);
@@ -160,21 +161,43 @@ export function PizzaBuilder({ product, editing, onCancel, onConfirm }: BuilderP
           </div>
         </header>
 
-        {sizeVariants.length > 0 && (
-          <div className="seg seg--sizes" role="tablist" aria-label="גודל מגש">
-            {sizeVariants.map((v) => (
-              <button
-                key={v.id}
-                role="tab"
-                aria-selected={variantLabel === v.label}
-                className={variantLabel === v.label ? 'is-active' : ''}
-                onClick={() => setVariantLabel(v.label)}
-              >
-                {v.label} · {shekels(v.price)}
+        <div className="builder__controls">
+          <div className="builder__controls-row">
+            {sizeVariants.length > 0 && (
+              <div className="seg seg--sizes" role="tablist" aria-label="גודל מגש">
+                {sizeVariants.map((v) => (
+                  <button
+                    key={v.id}
+                    role="tab"
+                    aria-selected={variantLabel === v.label}
+                    className={variantLabel === v.label ? 'is-active' : ''}
+                    onClick={() => setVariantLabel(v.label)}
+                  >
+                    {v.label} · {shekels(v.price)}
+                  </button>
+                ))}
+              </div>
+            )}
+            {!noteOpen && (
+              <button type="button" className="note-chip" onClick={openNote}>
+                <span className="note-chip__plus">＋</span> הערה
               </button>
-            ))}
+            )}
           </div>
-        )}
+          {noteOpen && (
+            <div className="note-field">
+              <textarea
+                ref={noteRef}
+                className="note-input"
+                placeholder="הערה למטבח — פחות גבינה, בלי בצל…"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                rows={2}
+              />
+              <button type="button" className="note-close" aria-label="סגירת הערה" onClick={() => setNoteOpen(false)}>×</button>
+            </div>
+          )}
+        </div>
 
         <div className="builder__body">
           <div className="builder__stage">
@@ -184,39 +207,13 @@ export function PizzaBuilder({ product, editing, onCancel, onConfirm }: BuilderP
               left={h1.selected}
               right={h2.selected}
               focus={isSplit ? activeHalf : undefined}
+              onPickHalf={isSplit ? setActiveHalf : undefined}
               size={280}
             />
-            <input className="note-input" placeholder="הערה (בלי בצל, דק…)" value={note} onChange={(e) => setNote(e.target.value)} />
+            {isSplit && <p className="stage-hint">הקישו על חצי הפיצה כדי לערוך אותו</p>}
           </div>
 
           <div className="builder__picker">
-            {isSplit && (
-              <div className="seg seg--halves" role="tablist" aria-label="בחירת חצי">
-                <button role="tab" aria-selected={activeHalf === 'half_1'} className={activeHalf === 'half_1' ? 'is-active' : ''} onClick={() => setActiveHalf('half_1')}>חצי 1</button>
-                <button role="tab" aria-selected={activeHalf === 'half_2'} className={activeHalf === 'half_2' ? 'is-active' : ''} onClick={() => setActiveHalf('half_2')}>חצי 2</button>
-              </div>
-            )}
-
-            {isSplit && (
-              <>
-                <p className="picker__caption">בסיס {activeHalf === 'half_1' ? 'לחצי 1' : 'לחצי 2'}</p>
-                <div className="basepicker" role="listbox" aria-label="בסיס">
-                  {pizzaProducts.map((p) => (
-                    <button
-                      key={p.id}
-                      role="option"
-                      aria-selected={active.baseProductId === p.id}
-                      className={`basecard ${active.baseProductId === p.id ? 'is-active' : ''}`}
-                      onClick={() => chooseBase(p.id)}
-                    >
-                      <PizzaArt whole={artOf(p.id)} size={46} />
-                      <span>{p.name}</span>
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-
             <p className="picker__caption">תוספות</p>
             <div className="toplist" role="list">
               {toppings.map((t) => {
@@ -244,15 +241,6 @@ export function PizzaBuilder({ product, editing, onCancel, onConfirm }: BuilderP
                 );
               })}
             </div>
-
-            <p className="picker__hint">
-              {freeExtra > 0
-                ? `${freeExtra} תוספות נוספות כלולות${usedExtra > 0 ? ` · ${usedExtra} בתשלום` : ''}`
-                : usedExtra > 0
-                  ? `${usedExtra} תוספות בתשלום`
-                  : 'כל תוספת נוספת בתשלום'}
-            </p>
-            <p className="picker__tip">הקשה נוספת על תוספת = כפול ×2</p>
           </div>
         </div>
 

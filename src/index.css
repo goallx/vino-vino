@@ -85,12 +85,23 @@ input, select { font-family: inherit; }
   overflow: hidden;
 }
 .cats {
-  display: flex; gap: 6px; flex-wrap: wrap;
+  display: flex; align-items: center; gap: 10px;
   padding: 12px 12px 10px;
   border-bottom: 1px solid var(--line);
   background: linear-gradient(var(--surface), var(--paper));
 }
+/* food categories share one row; scroll horizontally only if they overflow.
+   The deals pill is pinned outside this strip so it never wraps. */
+.cats__scroll {
+  flex: 1; min-width: 0;
+  display: flex; gap: 6px;
+  overflow-x: auto; scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  border-inline-end: 1px solid var(--line); padding-inline-end: 10px;
+}
+.cats__scroll::-webkit-scrollbar { display: none; }
 .cat {
+  flex: none; white-space: nowrap;
   padding: 9px 16px; border-radius: 999px;
   min-height: 44px;
   font-size: 15px; font-weight: 600; color: var(--vino);
@@ -441,32 +452,98 @@ input, select { font-family: inherit; }
 .popover__opts { display: flex; gap: 10px; }
 
 .builder {
-  width: min(760px, 96vw); max-height: 92vh; overflow-y: auto;
+  width: min(760px, 96vw); max-height: 92vh;
+  display: flex; flex-direction: column; overflow: hidden;
   background: var(--surface); border-radius: var(--r-lg);
   box-shadow: var(--shadow-2);
   animation: pop-in .14s ease;
 }
+/* fixed chrome: header + size row never scroll */
 .builder__head {
+  flex: none;
   display: flex; align-items: center; justify-content: space-between; gap: 14px;
-  padding: 18px 22px; border-bottom: 1px solid var(--line);
-  position: sticky; inset-block-start: 0; background: var(--surface); z-index: 1;
+  padding: 16px 22px 12px;
+  background: var(--surface);
 }
+.builder__head-controls { display: flex; align-items: center; gap: 10px; }
+.builder__controls { flex: none; padding: 0 0 12px; }
 .builder__eyebrow { margin: 0; font-size: 11.5px; letter-spacing: 2px; color: var(--basil-deep); }
 .builder__title { margin: 0; font-family: var(--display); font-weight: 800; font-size: 26px; color: var(--vino); }
 .layout-toggle { display: flex; background: var(--paper); border-radius: 999px; padding: 4px; }
 .layout-toggle button { padding: 9px 18px; border-radius: 999px; font-weight: 700; color: var(--ink-soft); font-size: 14.5px; }
 .layout-toggle button.is-active { background: var(--vino); color: #fff; }
 
+/* kitchen note — tap the chip to reveal a full-width field at the top,
+   which stays clear of the on-screen keyboard on a tablet */
+.builder__controls-row { display: flex; align-items: stretch; gap: 10px; padding: 0 16px; }
+.builder__controls-row .seg--sizes { flex: 1; margin: 0; }
+.note-chip {
+  flex: none; display: inline-flex; align-items: center; gap: 6px;
+  padding: 0 18px; border-radius: var(--r-sm);
+  border: 2px dashed var(--line-strong); background: transparent;
+  color: var(--ink-soft); font-weight: 700; font-size: 15px; white-space: nowrap;
+}
+.note-chip:active { background: var(--paper-2); }
+.note-chip__plus { font-size: 17px; line-height: 1; color: var(--basil-deep); }
+.note-field { display: flex; align-items: flex-start; gap: 8px; padding: 10px 16px 0; }
 .note-input {
-  width: calc(100% - 44px); margin: 0 22px;
-  border: 1px solid var(--line-strong); border-radius: var(--r-sm);
-  padding: 12px 12px; font-size: 15px; outline: none; background: var(--surface);
+  flex: 1; resize: none;
+  border: 2px solid var(--line-strong); border-radius: var(--r-sm);
+  padding: 10px 12px; font: inherit; font-size: 15px; outline: none;
+  background: var(--surface); color: var(--ink);
 }
 .note-input:focus { border-color: var(--vino); }
+.note-close {
+  flex: none; width: 38px; height: 38px; border-radius: var(--r-sm);
+  background: var(--paper); color: var(--ink-soft); font-size: 22px; line-height: 1;
+}
+.stage-hint { margin: 0; font-size: 13px; color: var(--ink-soft); text-align: center; }
+
+/* ---- salad editor ---- */
+.saladbody {
+  flex: 1; min-height: 0; overflow-y: auto;
+  padding: 14px 20px 18px; border-top: 1px solid var(--line);
+}
+.saladbody .picker__caption { margin: 10px 0 6px; }
+.saladbody .picker__caption:first-child { margin-top: 0; }
+.saladgrid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;
+}
+.saladtoggle {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 13px 16px; border-radius: 14px; min-height: 58px;
+  background: #fff; border: 2px solid var(--line-strong);
+  font-weight: 700; font-size: 16px; text-align: start;
+  transition: background .12s ease, border-color .12s ease;
+}
+.saladtoggle__mark { flex: none; width: 26px; text-align: center; font-weight: 800; color: var(--basil-deep); }
+.saladtoggle--remove.is-on { background: #fdeceb; border-color: var(--vino); color: var(--vino-deep); }
+.saladtoggle--remove.is-on .saladtoggle__mark { color: var(--vino); }
+.saladtoggle--season.is-on { background: #e9f3e3; border-color: var(--basil); color: var(--basil-deep); }
+/* salad's own ingredients — each can be removed (בלי, free) or added (תוספת, paid) */
+.ingrlist { display: flex; flex-direction: column; gap: 10px; }
+.saladingr {
+  display: flex; align-items: center; gap: 11px;
+  padding: 10px 14px; border-radius: 14px; min-height: 58px;
+  background: #fff; border: 2px solid var(--line-strong);
+}
+.saladingr.is-out { opacity: .6; }
+.saladingr.is-out .saladingr__name { text-decoration: line-through; }
+.saladingr__icon { flex: none; width: 34px; height: 34px; display: grid; place-items: center; }
+.saladingr__name { flex: 1; font-weight: 700; font-size: 16.5px; min-width: 0; }
+.saladingr__actions { flex: none; display: flex; gap: 8px; }
+.ingrbtn {
+  padding: 9px 14px; border-radius: 10px; font-weight: 700; font-size: 14.5px;
+  border: 2px solid var(--line-strong); background: var(--paper); color: var(--ink-soft);
+  white-space: nowrap;
+}
+.ingrbtn--remove.is-on { background: #fdeceb; border-color: var(--vino); color: var(--vino-deep); }
+.ingrbtn--extra.is-on { background: #e9f3e3; border-color: var(--basil); color: var(--basil-deep); }
 .builder__foot {
+  flex: none;
   display: flex; gap: 12px; justify-content: flex-end;
-  padding: 16px 22px 20px;
-  position: sticky; inset-block-end: 0; background: var(--surface);
+  padding: 14px 22px 18px; background: var(--surface);
+  border-top: 1px solid var(--line);
 }
 
 /* ============================================================
@@ -781,7 +858,11 @@ input, select { font-family: inherit; }
    BUILDER — tablet layout: pizza centre, toppings beside
    ============================================================ */
 .builder--wide { width: min(1140px, 97vw); }
-.builder__body { display: flex; gap: 18px; padding: 16px 20px; align-items: stretch; }
+.builder__body {
+  flex: 1; min-height: 0;
+  display: flex; gap: 18px; padding: 16px 20px; align-items: stretch;
+  border-top: 1px solid var(--line);
+}
 
 .builder__stage {
   flex: none; width: 320px;
@@ -795,20 +876,23 @@ input, select { font-family: inherit; }
 .builder__stage .note-input { width: 100%; margin: 0; }
 
 .builder__picker {
-  flex: 1; min-width: 0;
+  flex: 1; min-width: 0; min-height: 0;
   display: flex; flex-direction: column; gap: 8px;
 }
-.seg--halves { flex: none; }
-.seg--halves button { padding: 11px 4px; font-size: 15px; }
+/* compact "which half am I editing" pill, tucked into the header */
+.seg--halves { flex: none; background: var(--paper); border-radius: 999px; padding: 4px; }
+.seg--halves button { padding: 9px 18px; font-size: 14.5px; font-weight: 700; border-radius: 999px; color: var(--ink-soft); }
 .seg--halves button.is-active { background: var(--vino); color: #fff; }
 
 /* all toppings visible at once — multi-column grid, no scroll. Bigger pills
    (touch-friendly) that spread into the picker's vertical space. */
 .toplist {
+  flex: 1; min-height: 0; overflow-y: auto;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 10px;
   align-content: start;
+  padding-inline-end: 4px;
 }
 .toprow {
   display: flex; align-items: center; gap: 11px;
@@ -1348,3 +1432,18 @@ input, select { font-family: inherit; }
 .srow__name { font-weight: 800; font-size: 16px; }
 .srow__desc { font-size: 12.5px; color: var(--ink-soft); }
 .srow__go { margin-inline-start: auto; font-size: 14px; font-weight: 700; color: var(--ink-soft); }
+
+/* ============================================================
+   SHIFT SUMMARY — "סגירת משמרת": end-of-day cash summary, read-only
+   ============================================================ */
+.shift { width: min(460px, 94vw); }
+.shift__body { gap: 14px; padding-bottom: 20px; }
+.shift__stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.shift__mini { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.shift .stat { padding: 14px 16px; }
+.shift .stat__value { font-size: 30px; }
+.shift .stat--hero .stat__value { font-size: 34px; }
+.shift__mini .stat__value { font-size: 24px; }
+.stat--courier { background: linear-gradient(135deg, var(--amber), #c9760f); border-color: #c9760f; }
+.stat--courier .stat__label { color: #fbe6c8; }
+.stat--courier .stat__value { color: #fff; }

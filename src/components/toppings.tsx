@@ -10,7 +10,8 @@ interface Visual {
 export const toppingVisual: Record<string, Visual> = {
   t_mushroom: { color: '#e7d4ad', dark: '#a9824f' },
   t_onion: { color: '#ead9f1', dark: '#9c6fb0' },
-  t_olives: { color: '#33303a', dark: '#16131b' },
+  t_olives: { color: '#8a9a3b', dark: '#5f6b26' },
+  t_black_olives: { color: '#2c2833', dark: '#141118' },
   t_corn: { color: '#f4c948', dark: '#d29a1d' },
   t_pepper: { color: '#43ad54', dark: '#2c7d3c' },
   t_jalapeno: { color: '#4caa3a', dark: '#357a27' },
@@ -40,10 +41,12 @@ export function PieMark({ id, x, y, r = 7 }: { id: string; x: number; y: number;
         </g>
       );
     case 't_olives':
+    case 't_black_olives':
+      // sliced olive: a ring with a hole in the middle
       return (
         <g transform={`translate(${x} ${y})`}>
-          <circle r={r - 1} fill={v.color} />
-          <circle r={r - 4} fill="#7a4f2a" />
+          <circle r={r - 1} fill={v.color} stroke={v.dark} strokeWidth="0.6" />
+          <circle r={(r - 1) * 0.42} fill="#f0e2c4" />
         </g>
       );
     case 't_onion':

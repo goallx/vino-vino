@@ -270,8 +270,8 @@ on conflict (id) do update set
   name = excluded.name, price = excluded.price,
   price_personal = excluded.price_personal, price_family = excluded.price_family;
 
--- olives + corn get the "opening price" (first one bills at the personal rate).
-update public.toppings set starter = (id in ('t_olives', 't_corn'));
+-- olives (green + black) + corn get the "opening price" (first one bills at the personal rate).
+update public.toppings set starter = (id in ('t_olives', 't_black_olives', 't_corn'));
 
 -- ============================================================
 -- 12. DEALS / BUNDLES  (fixed-price combos, added from the מבצעים pill)

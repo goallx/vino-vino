@@ -46,7 +46,7 @@ export function KitchenLine({ line }: { line: CartLine }) {
         </div>
       )}
 
-      {isPizza && !line.isSplit && wholeToppings.length > 0 && (
+      {!line.isSplit && wholeToppings.length > 0 && (
         <div className="kline__toppings">
           <Toppings list={wholeToppings} />
         </div>

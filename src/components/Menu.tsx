@@ -34,9 +34,9 @@ export const Menu = memo(function Menu({ onAddProduct, onOpenBuilder, onAddBundl
     [activeCat, showDeals, version],
   );
 
-  // Whole card → builder (pizzas) / popover (sized) / add (simple).
+  // Whole card → builder (pizzas / salads) / popover (sized) / add (simple).
   function handleTap(product: Product) {
-    if (product.isPizza) onOpenBuilder(product);
+    if (product.isPizza || product.categoryId === 'salads') onOpenBuilder(product);
     else if (product.variants && product.variants.length) setVariantFor(product);
     else onAddProduct(product);
   }
@@ -50,15 +50,17 @@ export const Menu = memo(function Menu({ onAddProduct, onOpenBuilder, onAddBundl
   return (
     <section className="menu" aria-label="תפריט">
       <nav className="cats" aria-label="קטגוריות">
-        {categories.map((c) => (
-          <button
-            key={c.id}
-            className={`cat ${c.id === activeCat ? 'is-active' : ''}`}
-            onClick={() => setActiveCat(c.id)}
-          >
-            {c.name}
-          </button>
-        ))}
+        <div className="cats__scroll">
+          {categories.map((c) => (
+            <button
+              key={c.id}
+              className={`cat ${c.id === activeCat ? 'is-active' : ''}`}
+              onClick={() => setActiveCat(c.id)}
+            >
+              {c.name}
+            </button>
+          ))}
+        </div>
         {bundles.length > 0 && (
           <button
             className={`cat cat--deals ${showDeals ? 'is-active' : ''}`}

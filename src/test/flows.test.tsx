@@ -89,7 +89,7 @@ describe('build a whole pizza', () => {
 });
 
 describe('build a half / half pizza', () => {
-  it('captures a different base per half and summarizes it', async () => {
+  it('customizes each half separately and summarizes it', async () => {
     const user = userEvent.setup();
     render(<App />);
     await openCategory(user, 'הרכבה עצמית');
@@ -98,19 +98,57 @@ describe('build a half / half pizza', () => {
     const dialog = screen.getByRole('dialog', { name: /בניית/ });
     await user.click(within(dialog).getByRole('tab', { name: 'חצי / חצי' }));
 
-    // half 1: pick base וינו וינו from the carousel, then add an extra topping
-    await user.click(within(dialog).getByRole('option', { name: 'וינו וינו' }));
+    // half 1: add mushrooms
     await user.click(within(dialog).getByText('פטריות').closest('button') as HTMLButtonElement);
 
-    // half 2: pick base שחיתות
-    await user.click(within(dialog).getByRole('tab', { name: 'חצי 2' }));
-    await user.click(within(dialog).getByRole('option', { name: 'שחיתות' }));
+    // half 2: tap the pizza's second half, then add corn
+    await user.click(within(dialog).getByRole('button', { name: 'עריכת חצי 2' }));
+    await user.click(within(dialog).getByText('תירס').closest('button') as HTMLButtonElement);
 
     await user.click(within(dialog).getByRole('button', { name: /הוסף להזמנה/ }));
 
     expect(within(ticket()).getByText(/חצי \/ חצי/)).toBeInTheDocument();
-    expect(within(ticket()).getByText(/וינו וינו/)).toBeInTheDocument();
-    expect(within(ticket()).getByText(/שחיתות/)).toBeInTheDocument();
+    expect(within(ticket()).getByText(/פטריות/)).toBeInTheDocument();
+    expect(within(ticket()).getByText(/תירס/)).toBeInTheDocument();
+  });
+});
+
+describe('build a salad', () => {
+  it('removes base + salad veg, seasons it, adds a paid extra and prices it', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openCategory(user, 'סלטים');
+    await clickItem(user, 'סלט עוף');
+
+    // SaladBuilder is lazy — await its chunk the first time it opens
+    const dialog = await screen.findByRole('dialog', { name: /עריכת/ });
+    await user.click(within(dialog).getByRole('button', { name: 'בלי חסה' }));       // base removal (free)
+    await user.click(within(dialog).getByRole('button', { name: 'בלי גמבה' }));       // salad-ingredient removal (free)
+    await user.click(within(dialog).getByRole('button', { name: /עם תיבול/ }));      // seasoning (free)
+    await user.click(within(dialog).getByRole('button', { name: 'תוספת נתחי עוף' })); // paid extra chicken
+
+    await user.click(within(dialog).getByRole('button', { name: /הוסף להזמנה/ }));
+
+    // base 75 + chicken extra 9 = 84 (removals + seasoning are free)
+    expect(total()).toHaveTextContent('₪84');
+    expect(within(ticket()).getByText(/חסה/)).toBeInTheDocument();
+    expect(within(ticket()).getByText(/גמבה/)).toBeInTheDocument();
+    expect(within(ticket()).getByText(/תיבול/)).toBeInTheDocument();
+    expect(within(ticket()).getByText(/נתחי עוף/)).toBeInTheDocument();
+  });
+
+  it('marking a salad ingredient "without" clears its extra (mutually exclusive)', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await openCategory(user, 'סלטים');
+    await clickItem(user, 'סלט עוף');
+
+    const dialog = await screen.findByRole('dialog', { name: /עריכת/ });
+    const addBtn = () => within(dialog).getByRole('button', { name: /הוסף להזמנה/ }); // footer shows the live price
+    await user.click(within(dialog).getByRole('button', { name: 'תוספת נתחי עוף' })); // +9
+    expect(addBtn()).toHaveTextContent('₪84');
+    await user.click(within(dialog).getByRole('button', { name: 'בלי נתחי עוף' }));   // clears the extra
+    expect(addBtn()).toHaveTextContent('₪75');
   });
 });
 
