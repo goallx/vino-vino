@@ -11,7 +11,7 @@ import { getByPhone, searchByPhonePrefix, searchByAddress, recordOrder, type Sto
 import { productsById } from './lib/menuStore';
 import { saveOrder } from './lib/saveOrder';
 import { loadOrders, publishOrder, subscribe } from './lib/orderBus';
-import { ordersForDay } from './analytics/metrics';
+import { currentShiftStart } from './lib/shifts';
 
 // These overlays are not needed for the first paint. Loading them on demand
 // keeps their editor code (and animation dependency) off the order-entry path.
@@ -53,17 +53,24 @@ export default function App({ username }: AppProps = {}) {
   const [phase, setPhase] = useState<'build' | 'checkout'>('build');
   const undoRef = useRef<UndoState | null>(null);
 
-  // The chit number mirrors the DB's daily_number (max of today's orders + 1)
-  // instead of a device-local counter, so the entry screen and the kitchen
-  // board always agree — even across devices and the daily reset.
+  // The chit number mirrors the DB's daily_number (max of the shift's orders +
+  // 1) instead of a device-local counter, so the entry screen and the kitchen
+  // board always agree — even across devices. The window is the current shift
+  // (since the last "סגירת משמרת", or midnight): closing a shift bumps
+  // `shiftStart`, which restarts numbering from #01. `shiftStart` is state so a
+  // close re-derives the number even though `orders` hasn't changed.
   const [orders, setOrders] = useState(loadOrders);
+  const [shiftStart, setShiftStart] = useState(currentShiftStart);
   useEffect(() => {
     setOrders(loadOrders());
     return subscribe(setOrders);
   }, []);
   const orderNumber = useMemo(
-    () => ordersForDay(orders).reduce((max, o) => Math.max(max, o.number), 0) + 1,
-    [orders],
+    () =>
+      orders
+        .filter((o) => o.createdAt >= shiftStart)
+        .reduce((max, o) => Math.max(max, o.number), 0) + 1,
+    [orders, shiftStart],
   );
 
   // Exact phone → reorder panel
@@ -194,6 +201,13 @@ export default function App({ username }: AppProps = {}) {
     setPhase('build');
   }
 
+  // A closed shift starts a fresh day: clear the ticket and re-read the boundary
+  // so the next order is #01. lib/shifts already persisted the close + snapshot.
+  function onShiftClosed() {
+    newOrder();
+    setShiftStart(currentShiftStart());
+  }
+
   async function send() {
     if (sending) return;
     setSending(true);
@@ -290,7 +304,13 @@ export default function App({ username }: AppProps = {}) {
       </main>
 
       <Suspense fallback={null}>
-        {settingsOpen && <SettingsModal username={username} onClose={() => setSettingsOpen(false)} />}
+        {settingsOpen && (
+          <SettingsModal
+            username={username}
+            onShiftClosed={onShiftClosed}
+            onClose={() => setSettingsOpen(false)}
+          />
+        )}
         {builder && (isSaladProduct(resolveBuilderProduct(builder)) ? (
           <SaladBuilder
             product={resolveBuilderProduct(builder)}

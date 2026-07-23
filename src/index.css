@@ -1447,3 +1447,27 @@ input, select { font-family: inherit; }
 .stat--courier { background: linear-gradient(135deg, var(--amber), #c9760f); border-color: #c9760f; }
 .stat--courier .stat__label { color: #fbe6c8; }
 .stat--courier .stat__value { color: #fff; }
+
+/* empty-ticket shortcut into checkout for a returning customer */
+.lines__cta { margin: 14px auto 0; display: inline-flex; }
+
+/* close-shift footer + confirm */
+.shift__foot { padding: 4px 16px 18px; }
+.shift__close { width: 100%; }
+.shift__confirm { display: flex; flex-direction: column; gap: 12px; }
+.shift__confirmnote { margin: 0; font-size: 14.5px; color: var(--ink); text-align: center; }
+.shift__confirmrow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.shift__confirmrow .btn { width: 100%; }
+
+/* shift history list */
+.shiftlog { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.shiftlog__row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px; border: 1.5px solid var(--line); border-radius: var(--r-sm); background: #fff;
+}
+.shiftlog__when { display: flex; flex-direction: column; gap: 2px; }
+.shiftlog__date { font-weight: 700; color: var(--ink); }
+.shiftlog__time { font-size: 12.5px; color: var(--ink-soft); }
+.shiftlog__nums { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.shiftlog__income { font-family: var(--display); font-weight: 900; font-size: 22px; color: var(--vino-ink); line-height: 1; }
+.shiftlog__sub { font-size: 12.5px; color: var(--ink-soft); }

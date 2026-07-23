@@ -48,7 +48,12 @@ export function Ticket(props: TicketProps) {
 
       <div className="lines" role="list">
         {state.lines.length === 0 && (
-          <p className="lines__empty">הקש על פריט בתפריט כדי להתחיל הזמנה</p>
+          <div className="lines__empty">
+            <p>הקש על פריט בתפריט כדי להתחיל הזמנה</p>
+            <button type="button" className="btn btn--ghost btn--sm lines__cta" onClick={props.onContinue}>
+              ↻ לקוח קבוע
+            </button>
+          </div>
         )}
         {state.lines.map((l) => {
           const summary = lineSummary(l);

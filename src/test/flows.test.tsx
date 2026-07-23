@@ -54,7 +54,8 @@ describe('build a whole pizza', () => {
     render(<App />);
     await clickItem(user, 'וינו וינו');
 
-    const dialog = screen.getByRole('dialog', { name: /בניית/ });
+    // PizzaBuilder is lazy — await its chunk the first time it opens
+    const dialog = await screen.findByRole('dialog', { name: /בניית/ });
     await user.click(within(dialog).getByRole('button', { name: /הוסף להזמנה/ }));
 
     expect(within(ticket()).getByText('וינו וינו', { selector: '.line__name' })).toBeInTheDocument();
@@ -317,7 +318,8 @@ describe('settings modal', () => {
     render(<App username="admin" />);
 
     await user.click(screen.getByRole('button', { name: /הגדרות/ }));
-    const dialog = screen.getByRole('dialog', { name: 'הגדרות' });
+    // SettingsModal is lazy — await its chunk the first time it opens
+    const dialog = await screen.findByRole('dialog', { name: 'הגדרות' });
 
     expect(within(dialog).getByRole('link', { name: /^תפריט/ })).toHaveAttribute('href', '/menu');
     expect(within(dialog).getByRole('link', { name: /^מבצעים/ })).toHaveAttribute('href', '/deals');
@@ -328,5 +330,32 @@ describe('settings modal', () => {
 
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'הגדרות' })).not.toBeInTheDocument());
+  });
+});
+
+describe('close shift', () => {
+  it('resets the order number to #01 after closing the shift', async () => {
+    const user = userEvent.setup();
+    render(<App username="admin" />);
+
+    // send an order so the counter advances to #02
+    await openCategory(user, 'שתייה');
+    await clickItem(user, 'קוקה קולה 0.33');
+    await user.click(within(ticket()).getByRole('button', { name: /המשך/ }));
+    await user.click(screen.getByRole('button', { name: /שלח למטבח/ }));
+    await waitFor(() => expect(orderNo()).toHaveTextContent('#02'));
+
+    // open settings → סגירת משמרת → confirm the close
+    await user.click(screen.getByRole('button', { name: /הגדרות/ }));
+    const settings = await screen.findByRole('dialog', { name: 'הגדרות' });
+    await user.click(within(settings).getByRole('button', { name: /סגירת משמרת/ }));
+
+    const shift = await screen.findByRole('dialog', { name: 'סגירת משמרת' });
+    await user.click(within(shift).getByRole('button', { name: /^סגור משמרת/ }));
+    await user.click(within(shift).getByRole('button', { name: /כן, סגור משמרת/ }));
+
+    // fresh day — numbering restarts, ticket is empty
+    await waitFor(() => expect(orderNo()).toHaveTextContent('#01'));
+    expect(within(ticket()).getByText(/כדי להתחיל הזמנה/)).toBeInTheDocument();
   });
 });

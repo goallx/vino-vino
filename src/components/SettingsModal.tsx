@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 import { ShiftSummaryModal } from './ShiftSummaryModal';
+import { ShiftHistoryModal } from './ShiftHistoryModal';
 
 interface SettingsModalProps {
   username?: string;
+  /** Reset order numbering + the ticket after a shift is closed. */
+  onShiftClosed: () => void;
   onClose: () => void;
 }
 
@@ -12,8 +15,9 @@ interface SettingsModalProps {
  * Links navigate in place (no new tab — tablet browsers hide tabs and a
  * stray one is easy to lose); the in-progress order is autosaved as a draft.
  */
-export function SettingsModal({ username, onClose }: SettingsModalProps) {
+export function SettingsModal({ username, onShiftClosed, onClose }: SettingsModalProps) {
   const [shiftOpen, setShiftOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -92,11 +96,30 @@ export function SettingsModal({ username, onClose }: SettingsModalProps) {
               </span>
               <span className="srow__go" aria-hidden="true">←</span>
             </button>
+            <button type="button" className="srow" onClick={() => setHistoryOpen(true)}>
+              <span className="srow__icon" aria-hidden="true">📅</span>
+              <span className="srow__text">
+                <span className="srow__name">היסטוריית משמרות</span>
+                <span className="srow__desc">משמרות שנסגרו — הכנסות ותשלומים</span>
+              </span>
+              <span className="srow__go" aria-hidden="true">←</span>
+            </button>
           </section>
         </div>
       </div>
 
-      {shiftOpen && <ShiftSummaryModal onClose={() => setShiftOpen(false)} />}
+      {shiftOpen && (
+        <ShiftSummaryModal
+          username={username}
+          onShiftClosed={() => {
+            onShiftClosed();
+            setShiftOpen(false);
+            onClose();
+          }}
+          onClose={() => setShiftOpen(false)}
+        />
+      )}
+      {historyOpen && <ShiftHistoryModal onClose={() => setHistoryOpen(false)} />}
     </div>
   );
 }

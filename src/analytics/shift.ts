@@ -1,5 +1,7 @@
 import type { KitchenOrder, Money } from '../types';
-import { computeMetrics, ordersForDay, startOfDay } from './metrics';
+import { computeMetrics, startOfDay } from './metrics';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Share of the collected delivery fees that is paid out to the courier.
@@ -33,22 +35,31 @@ export interface ShiftSummary {
 }
 
 /**
- * End-of-shift cash summary for the calendar day containing `ref` (default: now).
+ * End-of-shift cash summary for the shift that began at `since` (default: the
+ * start of today, i.e. the natural calendar-day window). A shift is bounded to
+ * at most one day — orders from `since` up to `since + 24h` are counted.
  *
  * READ-ONLY aggregation over already-loaded orders — it never mutates or resets
- * anything. Cancelled orders are excluded from every figure.
+ * anything. Cancelled orders are excluded from every figure. The reset that
+ * closing a shift performs lives in the UI layer (see lib/shifts + App), not
+ * here, so this stays a pure function.
  */
-export function shiftSummary(orders: KitchenOrder[], ref: number = Date.now()): ShiftSummary {
-  const day = ordersForDay(orders, ref).filter((o) => o.status !== 'cancelled');
-  const m = computeMetrics(day); // computeMetrics also drops cancelled — belt and suspenders
+export function shiftSummary(
+  orders: KitchenOrder[],
+  since: number = startOfDay(Date.now()),
+): ShiftSummary {
+  const window = orders.filter(
+    (o) => o.createdAt >= since && o.createdAt < since + DAY_MS && o.status !== 'cancelled',
+  );
+  const m = computeMetrics(window); // computeMetrics also drops cancelled — belt and suspenders
 
-  const deliveryFeeTotal = day
+  const deliveryFeeTotal = window
     .filter((o) => o.type === 'delivery')
     .reduce((sum, o) => sum + (o.deliveryFee ?? 0), 0);
   const courierOwed = Math.round(deliveryFeeTotal * COURIER_FEE_SHARE);
 
   return {
-    date: startOfDay(ref),
+    date: startOfDay(since),
     orderCount: m.orderCount,
     income: m.revenue,
     deliveryFeeTotal,

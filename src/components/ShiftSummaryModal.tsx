@@ -2,8 +2,12 @@ import { useEffect, useState } from 'react';
 import { loadOrders, subscribe } from '../lib/orderBus';
 import { shekels } from '../lib/money';
 import { shiftSummary } from '../analytics/shift';
+import { closeShift, currentShiftStart } from '../lib/shifts';
 
 interface ShiftSummaryModalProps {
+  username?: string;
+  /** Reset order numbering + the ticket after the shift is closed. */
+  onShiftClosed: () => void;
   onClose: () => void;
 }
 
@@ -23,8 +27,9 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: 'he
  * the live order feed and aggregates it; it never deletes or resets any order.
  * The daily reset happens naturally (orders roll off the 14-day window).
  */
-export function ShiftSummaryModal({ onClose }: ShiftSummaryModalProps) {
+export function ShiftSummaryModal({ username, onShiftClosed, onClose }: ShiftSummaryModalProps) {
   const [orders, setOrders] = useState(loadOrders);
+  const [confirming, setConfirming] = useState(false);
 
   useEffect(() => {
     setOrders(loadOrders());
@@ -39,7 +44,14 @@ export function ShiftSummaryModal({ onClose }: ShiftSummaryModalProps) {
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const s = shiftSummary(orders);
+  const openedAt = currentShiftStart();
+  const s = shiftSummary(orders, openedAt);
+
+  function handleClose() {
+    const closedAt = Date.now();
+    closeShift({ ...s, openedAt, closedAt, closedBy: username });
+    onShiftClosed(); // parent resets numbering + ticket and dismisses the modals
+  }
 
   return (
     <div className="scrim" onClick={onClose}>
@@ -101,6 +113,28 @@ export function ShiftSummaryModal({ onClose }: ShiftSummaryModalProps) {
             </div>
           </div>
         </div>
+
+        <footer className="shift__foot">
+          {confirming ? (
+            <div className="shift__confirm">
+              <p className="shift__confirmnote">
+                לסגור את המשמרת? ההזמנות יתאפסו והמספור יתחיל מחדש מ־#01.
+              </p>
+              <div className="shift__confirmrow">
+                <button className="btn btn--ghost" onClick={() => setConfirming(false)}>
+                  ביטול
+                </button>
+                <button className="btn btn--send" onClick={handleClose}>
+                  כן, סגור משמרת
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button className="btn btn--send shift__close" onClick={() => setConfirming(true)}>
+              סגור משמרת והתחל יום חדש
+            </button>
+          )}
+        </footer>
       </div>
     </div>
   );
