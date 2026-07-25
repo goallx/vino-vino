@@ -63,7 +63,9 @@ describe('menu CRUD', () => {
     await user.click(within(card as HTMLElement).getByText('עריכה'));
 
     const dialog = screen.getByRole('group', { name: 'עריכת פריט' });
-    const price = within(dialog).getByPlaceholderText('0');
+    // p_vino is a pizza, so the editor shows both price and included-toppings
+    // (each placeholder "0"); price is the first.
+    const price = within(dialog).getAllByPlaceholderText('0')[0];
     await user.clear(price);
     await user.type(price, '99');
     await user.click(within(dialog).getByText('שמור פריט'));
@@ -136,5 +138,73 @@ describe('menu CRUD', () => {
     const reopenedSelect = within(reopened).getByLabelText('תוספות בבסיס (מה כלול בפיצה כברירת מחדל)') as HTMLSelectElement;
     const selected = Array.from(reopenedSelect.selectedOptions).map((o) => o.value);
     expect(selected).toEqual(['t_mushroom', 't_onion']);
+  });
+
+  it('lets you set how many toppings a pizza includes', async () => {
+    const user = userEvent.setup();
+    render(<Deals />);
+    await user.click(screen.getByRole('tab', { name: 'תפריט' }));
+    await user.click(screen.getByText('+ פריט חדש'));
+
+    const dialog = screen.getByRole('group', { name: 'עריכת פריט' });
+    await user.type(within(dialog).getByPlaceholderText('לדוגמה: פיצה מרגריטה'), 'פיצה שף');
+    await user.click(within(dialog).getByText('פיצה 🍕')); // reveals the included-toppings field
+    await user.type(within(dialog).getAllByPlaceholderText('0')[0], '90'); // price
+    const inc = within(dialog).getByLabelText('תוספות כלולות');
+    await user.clear(inc);
+    await user.type(inc, '3');
+    await user.click(within(dialog).getByText('שמור פריט'));
+
+    const saved = JSON.parse(localStorage.getItem('vino:menu')!).find(
+      (p: { name: string }) => p.name === 'פיצה שף',
+    );
+    expect(saved.isPizza).toBe(true);
+    expect(saved.includedToppings).toBe(3);
+  });
+
+  it('lets you set a salad’s offered extras via the same picker', async () => {
+    const user = userEvent.setup();
+    render(<Deals />);
+    await user.click(screen.getByRole('tab', { name: 'תפריט' }));
+    await user.click(screen.getByText('+ פריט חדש'));
+
+    const dialog = screen.getByRole('group', { name: 'עריכת פריט' });
+    await user.type(within(dialog).getByPlaceholderText('לדוגמה: פיצה מרגריטה'), 'סלט חדש');
+    await user.type(within(dialog).getByPlaceholderText('0'), '50'); // price (regular dish → sole 0-field)
+    await user.selectOptions(within(dialog).getByLabelText('קטגוריה'), 'salads'); // reveals the extras picker
+    const extras = within(dialog).getByLabelText('תוספות אפשריות (מה אפשר להוסיף לסלט)');
+    await user.selectOptions(extras, ['t_mushroom', 't_corn']);
+    await user.click(within(dialog).getByText('שמור פריט'));
+
+    const saved = JSON.parse(localStorage.getItem('vino:menu')!).find(
+      (p: { name: string }) => p.name === 'סלט חדש',
+    );
+    expect(saved.categoryId).toBe('salads');
+    expect(saved.isPizza).toBeUndefined();
+    expect(saved.art).toEqual(['t_mushroom', 't_corn']);
+  });
+});
+
+describe('deal perks', () => {
+  it('creates a deal that grants free toppings, and shows the perk badge', async () => {
+    const user = userEvent.setup();
+    render(<Deals />);
+    await user.click(screen.getByText('+ מבצע חדש'));
+
+    const dialog = screen.getByRole('dialog', { name: 'עריכת מבצע' });
+    await user.type(within(dialog).getByPlaceholderText('לדוגמה: זוג משפחתיות'), 'משפחתית + 3 תוספות');
+    await user.selectOptions(within(dialog).getByRole('combobox'), 'p_vino');
+    await user.type(within(dialog).getAllByPlaceholderText('0')[0], '120'); // price ₪120
+    await user.type(within(dialog).getByLabelText('תוספות חינם'), '3');
+    await user.click(within(dialog).getByText('שמור מבצע'));
+
+    const saved = JSON.parse(localStorage.getItem('vino:bundles')!).find(
+      (b: { name: string }) => b.name === 'משפחתית + 3 תוספות',
+    );
+    expect(saved.freeToppings).toBe(3);
+    expect(saved.price).toBe(12000);
+
+    // the deal card advertises the perk
+    expect(screen.getByText('🍕 3 תוספות חינם')).toBeInTheDocument();
   });
 });

@@ -22,7 +22,9 @@ function normalize(p: Product): Product {
   delete rest.isPizza;
   delete rest.splitCapable;
   delete rest.includedToppings;
-  delete rest.art;
+  // Salads keep their `art` — it's the list of extras the SaladBuilder offers;
+  // other regular dishes don't use it.
+  if (p.categoryId !== 'salads') delete rest.art;
   return rest;
 }
 
@@ -124,9 +126,19 @@ function ProductEditor({ initial, onCancel, onSave, row }: ProductEditorProps) {
     !uploading &&
     (hasVariants ? variantsOk : draft.basePrice > 0);
 
+  // Both pizzas (base recipe) and salads (offered extras) carry a topping list
+  // in `art`; only pizzas have a free-topping allowance.
+  const isSalad = draft.categoryId === 'salads';
+  const showArt = !!draft.isPizza || isSalad;
+
   function setPrice(shekelText: string) {
     const n = Math.max(0, Math.round(Number(shekelText) * 100));
     setDraft((d) => ({ ...d, basePrice: Number.isFinite(n) ? n : 0 }));
+  }
+
+  function setIncluded(text: string) {
+    const n = Math.max(0, Math.floor(Number(text)));
+    setDraft((d) => ({ ...d, includedToppings: Number.isFinite(n) ? n : 0 }));
   }
 
   const toAgorot = (s: string) => {
@@ -221,10 +233,28 @@ function ProductEditor({ initial, onCancel, onSave, row }: ProductEditorProps) {
           <div className="dactive">
             <span className="dfield"><span>סוג</span></span>
             <div className="seg" role="group" aria-label="סוג פריט">
-              <button className={draft.isPizza ? 'is-active seg--paid' : ''} onClick={() => setDraft({ ...draft, isPizza: true })}>פיצה 🍕</button>
+              <button
+                className={draft.isPizza ? 'is-active seg--paid' : ''}
+                onClick={() => setDraft({ ...draft, isPizza: true, includedToppings: draft.includedToppings ?? 1 })}
+              >
+                פיצה 🍕
+              </button>
               <button className={!draft.isPizza ? 'is-active' : ''} onClick={() => setDraft({ ...draft, isPizza: undefined })}>מנה רגילה</button>
             </div>
           </div>
+
+          {draft.isPizza && (
+            <label className="dfield">
+              <span>תוספות כלולות (כמה תוספות חינם כלולות במחיר)</span>
+              <input
+                inputMode="numeric"
+                placeholder="0"
+                value={draft.includedToppings ?? ''}
+                onChange={(e) => setIncluded(e.target.value)}
+                aria-label="תוספות כלולות"
+              />
+            </label>
+          )}
 
           <label className="dfield">
             <span>תיאור (רשות)</span>
@@ -297,9 +327,13 @@ function ProductEditor({ initial, onCancel, onSave, row }: ProductEditorProps) {
             </div>
           </div>
 
-          {draft.isPizza && (
+          {showArt && (
             <label className="dfield dfield--full">
-              <span>תוספות בבסיס (מה כלול בפיצה כברירת מחדל)</span>
+              <span>
+                {draft.isPizza
+                  ? 'תוספות בבסיס (מה כלול בפיצה כברירת מחדל)'
+                  : 'תוספות אפשריות (מה אפשר להוסיף לסלט)'}
+              </span>
               <select
                 multiple
                 className="dselect dselect--multi"

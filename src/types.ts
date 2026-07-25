@@ -96,6 +96,7 @@ export interface AppliedCombo {
   bundleId: string;
   label: string; // snapshot of the deal name for the ticket
   price: Money; // the fixed deal price its member lines net to
+  freeToppings?: number; // perk: N added-topping portions waived across the combo's pizzas
 }
 
 /** A fixed-price combo the owner builds in /deals (e.g. 2 family pizzas for ₪160). */
@@ -105,6 +106,12 @@ export interface Bundle {
   items: BundleItem[];
   price: Money; // the deal price for the whole bundle
   active: boolean;
+  /**
+   * Perk: a pool of free added-topping portions the deal grants across its
+   * pizzas, waived best-value-first (priciest first). Absent/0 = no perk.
+   * Deals carrying a perk are manual-add only (can't be inferred from a cart).
+   */
+  freeToppings?: number;
 }
 
 /** A bundle once applied to an order — carries the saving as an order-level discount. */

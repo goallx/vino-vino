@@ -261,12 +261,12 @@ describe('delivery fee', () => {
     await clickItem(user, 'קוקה קולה 0.33'); // ₪10
     await user.click(within(ticket()).getByRole('button', { name: /המשך/ }));
 
-    const freeDelivery = screen.getByRole('button', { name: '₪0' });
-    expect(freeDelivery).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByRole('button', { name: '₪0' })).not.toBeInTheDocument();
+    expect(screen.getByText('ללא עלות')).toBeInTheDocument();
     expect(screen.getByTestId('ticket-total')).toHaveTextContent('₪10');
 
     await user.click(screen.getByRole('button', { name: '₪15' }));
-    expect(freeDelivery).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByText('₪15', { selector: '.deliv__current' })).toBeInTheDocument();
     expect(screen.getByTestId('ticket-total')).toHaveTextContent('₪25');
 
     // switching to pickup drops the fee and hides the pills

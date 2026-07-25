@@ -11,7 +11,7 @@ import { useConfirm } from '../components/ConfirmDialog';
 type Tab = 'deals' | 'menu' | 'toppings';
 
 function blankBundle(): Bundle {
-  return { id: newBundleId(), name: '', items: [], price: 0, active: true };
+  return { id: newBundleId(), name: '', items: [], price: 0, active: true, freeToppings: 0 };
 }
 
 export function Deals() {
@@ -86,6 +86,9 @@ export function Deals() {
                   <span className="coupon__perf" aria-hidden="true" />
                   <span className="coupon__name">{b.name || 'ללא שם'}</span>
                   <span className="coupon__items">{items || 'ללא פריטים'}</span>
+                  {(b.freeToppings ?? 0) > 0 && (
+                    <span className="coupon__perk">🍕 {b.freeToppings} תוספות חינם</span>
+                  )}
                   <span className="coupon__foot">
                     {saving > 0 && <span className="coupon__was">{shekels(bundleGross(b))}</span>}
                     <span className="coupon__price">{shekels(b.price)}</span>
@@ -153,6 +156,11 @@ function Editor({ initial, onCancel, onSave }: EditorProps) {
   function setPrice(shekelText: string) {
     const n = Math.max(0, Math.round(Number(shekelText) * 100));
     setDraft((d) => ({ ...d, price: Number.isFinite(n) ? n : 0 }));
+  }
+
+  function setFreeToppings(text: string) {
+    const n = Math.max(0, Math.floor(Number(text)));
+    setDraft((d) => ({ ...d, freeToppings: Number.isFinite(n) ? n : 0 }));
   }
 
   return (
@@ -237,6 +245,17 @@ function Editor({ initial, onCancel, onSave }: EditorProps) {
                 onChange={(e) => setPrice(e.target.value)}
               />
             </div>
+          </label>
+
+          <label className="dfield">
+            <span>תוספות חינם (הטבה — מס׳ תוספות שהמבצע נותן בחינם על הפיצות)</span>
+            <input
+              inputMode="numeric"
+              placeholder="0"
+              value={draft.freeToppings ? String(draft.freeToppings) : ''}
+              onChange={(e) => setFreeToppings(e.target.value)}
+              aria-label="תוספות חינם"
+            />
           </label>
 
           <div className={`dsaving ${saving > 0 ? '' : 'dsaving--none'}`}>

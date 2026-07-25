@@ -348,27 +348,55 @@ input, select { font-family: inherit; }
 .csum__row--fee .csum__qty { color: var(--amber); font-size: 12px; }
 .csum__row--fee .csum__price { color: var(--amber); }
 
-/* delivery-fee pills (delivery orders only), above the send button */
-.deliv { display: flex; align-items: center; gap: 10px; margin: 10px 0 12px; }
-.deliv__label { font-size: 13px; font-weight: 700; color: var(--ink-soft); flex: none; }
-.deliv__pills { display: flex; gap: 8px; flex: 1; flex-wrap: wrap; }
+/* delivery fee — compact checkout card with tablet-sized controls */
+.deliv {
+  margin: 10px 0 12px; padding: 12px;
+  background: var(--paper); border: 1px solid var(--line); border-radius: var(--r-md);
+}
+.deliv__head { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
+.deliv__heading { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.deliv__label { font-size: 14px; font-weight: 800; color: var(--ink); }
+.deliv__hint { font-size: 11.5px; color: var(--ink-soft); }
+.deliv__current {
+  margin-inline-start: auto; flex: none; padding: 5px 9px; border-radius: 999px;
+  background: #fff; border: 1px solid var(--line-strong);
+  color: var(--amber); font-size: 12.5px; font-weight: 800;
+}
+.deliv__controls { display: flex; flex-direction: column; gap: 8px; }
+.deliv__pills { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 7px; }
 .deliv__pill {
-  flex: 1 0 60px; padding: 12px 8px; border-radius: 999px;
-  font-weight: 800; font-size: 16px; color: var(--vino);
+  min-height: 46px; padding: 9px 6px; border-radius: 12px;
+  font-weight: 800; font-size: 15px; color: var(--vino);
   background: #fff; border: 1.5px solid var(--line-strong);
+  transition: background .12s ease, border-color .12s ease, color .12s ease, transform .05s ease;
 }
+.deliv__pill:hover { border-color: var(--amber); background: #fffaf2; }
 .deliv__pill:active { transform: translateY(1px); }
-.deliv__pill.is-active { background: var(--amber); color: #fff; border-color: var(--amber); }
+.deliv__pill:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.deliv__pill.is-active {
+  background: var(--amber); color: #fff; border-color: var(--amber);
+  box-shadow: 0 3px 9px rgba(220, 132, 17, .2);
+}
 .deliv__custom {
-  flex: 1 0 90px; gap: 4px; padding: 4px 10px; border-radius: 999px;
-  background: #fff; border: 1.5px solid var(--line-strong);
+  min-height: 46px; display: flex; align-items: center; gap: 10px;
+  padding: 5px 8px 5px 12px; border-radius: 12px;
+  background: #fff; border: 1.5px solid var(--line-strong); cursor: text;
+  transition: border-color .12s ease, box-shadow .12s ease;
 }
-.deliv__custom.is-active { border-color: var(--amber); }
-.deliv__custom .dprice__shekel { font-size: 16px; }
+.deliv__custom:focus-within, .deliv__custom.is-active {
+  border-color: var(--amber); box-shadow: 0 0 0 2px rgba(220, 132, 17, .1);
+}
+.deliv__custom-label { flex: 1; font-size: 13px; font-weight: 700; color: var(--ink-soft); }
+.deliv__input {
+  width: 104px; display: flex; align-items: center; gap: 5px;
+  padding: 0 10px; background: var(--paper); border-radius: 8px;
+}
 .deliv__custom input {
-  width: 100%; min-width: 0; border: none; background: transparent; padding: 8px 0;
-  font-size: 16px; font-weight: 800; color: var(--vino); text-align: center;
+  width: 100%; min-width: 0; border: none; outline: none; background: transparent; padding: 8px 0;
+  font-size: 16px; font-weight: 800; color: var(--vino); text-align: end;
 }
+.deliv__custom input::placeholder { color: var(--ink-soft); opacity: .55; }
+.deliv__shekel { font-size: 15px; font-weight: 800; color: var(--amber); }
 
 /* pizza builder — family/personal size toggle */
 .seg--sizes { margin: 0 16px 4px; }
@@ -1133,6 +1161,7 @@ input, select { font-family: inherit; }
 }
 .coupon__name { font-family: var(--display); font-weight: 800; font-size: 19px; color: var(--vino); line-height: 1.1; margin-top: 4px; }
 .coupon__items { font-size: 13px; color: var(--ink-soft); line-height: 1.35; }
+.coupon__perk { display: inline-block; align-self: flex-start; margin-top: 6px; padding: 2px 9px; border-radius: 999px; background: #e9f3e3; color: var(--basil-deep); font-size: 12.5px; font-weight: 700; }
 .coupon__foot { display: flex; align-items: baseline; gap: 9px; margin-top: 6px; padding-top: 9px; border-top: 1px dashed var(--line-strong); }
 .coupon__was { font-size: 14px; color: var(--ink-soft); text-decoration: line-through; }
 .coupon__price { font-family: var(--display); font-weight: 900; font-size: 25px; color: var(--basil-deep); }

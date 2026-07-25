@@ -44,22 +44,39 @@ export function pricedAddedToppings(added: Topping[], size: PizzaSize, slotClaim
 }
 
 /**
- * Paid toppings on one part. The product's fixed price already includes its
- * base toppings (its `art`), so those consume the free allowance first: only
- * `includedToppings − baseCount` *added* toppings stay free, the rest are
- * charged. A build-your-own pie (no base art) keeps its full free allowance.
+ * The added-topping portions on one part that remain *charged* after the free
+ * allowance. The product's fixed price already includes its base toppings (its
+ * `art`), so those consume the free allowance first: only `includedToppings −
+ * baseCount` *added* toppings stay free, the rest are charged. A build-your-own
+ * pie (no base art) keeps its full free allowance. Each add expands to its
+ * portions (extra = 2) so a doubled topping bills its second portion.
  */
-function partExtraCost(part: LinePart, included: number): Money {
+function partChargedPortions(part: LinePart, included: number): Money[] {
   const baseCount = productsById[part.baseProductId]?.art?.length ?? 0;
   const freeAdded = Math.max(0, included - baseCount);
-  // Expand each add to its portions (extra = 2) so a doubled topping bills the
-  // second portion; the free allowance covers the first `freeAdded` portions.
   const portions: Money[] = [];
   for (const t of part.toppings) {
     if (t.action !== 'add') continue;
     for (let i = 0; i < (t.qty ?? 1); i += 1) portions.push(t.price);
   }
-  return portions.slice(freeAdded).reduce((sum, p) => sum + p, 0);
+  return portions.slice(freeAdded);
+}
+
+/** Sum of a part's charged added-topping portions. */
+function partExtraCost(part: LinePart, included: number): Money {
+  return partChargedPortions(part, included).reduce((sum, p) => sum + p, 0);
+}
+
+/**
+ * Every charged added-topping portion on a pizza line (across its parts), after
+ * the line's own free allowance. Used to price a deal's free-topping perk: the
+ * perk waives the priciest of these across the combo's pizzas.
+ */
+export function chargedToppingPortions(line: CartLine): Money[] {
+  const product = productsById[line.productId];
+  if (!product?.isPizza) return [];
+  const included = product.includedToppings ?? 0;
+  return line.parts.flatMap((part) => partChargedPortions(part, included));
 }
 
 /** A line's base (size-aware) price, before any added toppings. */
@@ -110,30 +127,44 @@ export function discountsTotal(discounts: AppliedBundle[]): Money {
 }
 
 /**
+ * A deal's free-topping perk: it waives the `freeToppings` priciest charged
+ * added-topping portions across the combo's pizzas (best-value-first, so the
+ * customer's most expensive toppings come off). Returns the saving in agorot.
+ */
+export function comboFreeToppingsSaving(members: CartLine[], freeToppings = 0): Money {
+  if (freeToppings <= 0) return 0;
+  const portions = members.flatMap(chargedToppingPortions).sort((a, b) => b - a);
+  return portions.slice(0, freeToppings).reduce((sum, p) => sum + p, 0);
+}
+
+/** A combo's full saving: base-price netting plus its free-topping perk. */
+function comboSaving(members: CartLine[], combo: AppliedCombo): Money {
+  const base = members.reduce((s, l) => s + lineBasePrice(l) * l.qty, 0);
+  return Math.max(0, base - combo.price) + comboFreeToppingsSaving(members, combo.freeToppings);
+}
+
+/**
  * Fixed-price combos: each combo's member lines (tagged with its uid) have
  * their *base* prices pinned to the deal `price`, so swapping which pizzas fill
- * the combo never changes what it costs. Paid extra toppings stay on top.
+ * the combo never changes what it costs. Paid extra toppings stay on top —
+ * minus any free-topping perk the deal grants.
  */
 export function combosDiscount(lines: CartLine[], combos: AppliedCombo[]): Money {
   return combos.reduce((sum, c) => {
-    const base = lines
-      .filter((l) => l.bundleUid === c.uid)
-      .reduce((s, l) => s + lineBasePrice(l) * l.qty, 0);
-    return sum + Math.max(0, base - c.price);
+    const members = lines.filter((l) => l.bundleUid === c.uid);
+    return sum + comboSaving(members, c);
   }, 0);
 }
 
 /**
  * Flatten fixed-price combos into the same AppliedBundle shape the auto-detect
  * deals use — so persistence, the kitchen board, and reports all see a combo's
- * saving uniformly (each combo's amount = its members' base minus the deal price).
+ * saving uniformly (each combo's amount = base netting + free-topping perk).
  */
 export function combosAsDiscounts(lines: CartLine[], combos: AppliedCombo[]): AppliedBundle[] {
   return combos.map((c) => {
-    const base = lines
-      .filter((l) => l.bundleUid === c.uid)
-      .reduce((s, l) => s + lineBasePrice(l) * l.qty, 0);
-    return { uid: c.uid, bundleId: c.bundleId, label: c.label, amount: Math.max(0, base - c.price) };
+    const members = lines.filter((l) => l.bundleUid === c.uid);
+    return { uid: c.uid, bundleId: c.bundleId, label: c.label, amount: comboSaving(members, c) };
   });
 }
 

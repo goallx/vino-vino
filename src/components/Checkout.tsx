@@ -5,7 +5,7 @@ import { shekels } from '../lib/money';
 import { ReorderPanel } from './ReorderPanel';
 import type { StoredCustomer, AddressSuggestion } from '../lib/customers';
 
-const DELIVERY_FEES = [0, 1000, 1500, 2000, 2500, 3000]; // ₪0 / ₪10 / ₪15 / ₪20 / ₪25 / ₪30, in agorot
+const DELIVERY_FEES = [1000, 1500, 2000, 2500, 3000]; // ₪10 / ₪15 / ₪20 / ₪25 / ₪30, in agorot
 
 interface CheckoutProps {
   state: OrderState;
@@ -38,6 +38,7 @@ interface CheckoutProps {
 export function Checkout(props: CheckoutProps) {
   const { state, setField, subtotal, discountTotal, total, orderNumber } = props;
   const hasDiscount = discountTotal > 0;
+  const hasCustomDeliveryFee = state.deliveryFee > 0 && !DELIVERY_FEES.includes(state.deliveryFee);
 
   return (
     <section className="checkout" aria-label="פרטי הזמנה">
@@ -160,31 +161,44 @@ export function Checkout(props: CheckoutProps) {
             </div>
             {state.type === 'delivery' && (
               <div className="deliv">
-                <span className="deliv__label">דמי משלוח</span>
-                <div className="deliv__pills" role="group" aria-label="דמי משלוח">
-                  {DELIVERY_FEES.map((f) => (
-                    <button
-                      key={f}
-                      className={`deliv__pill ${state.deliveryFee === f ? 'is-active' : ''}`}
-                      aria-pressed={state.deliveryFee === f}
-                      onClick={() => props.onSetDeliveryFee(f)}
-                    >
-                      {shekels(f)}
-                    </button>
-                  ))}
-                  <div className={`deliv__custom dprice ${!DELIVERY_FEES.includes(state.deliveryFee) ? 'is-active' : ''}`}>
-                    <span className="dprice__shekel">₪</span>
-                    <input
-                      inputMode="numeric"
-                      placeholder="אחר"
-                      aria-label="דמי משלוח אחר"
-                      value={state.deliveryFee && !DELIVERY_FEES.includes(state.deliveryFee) ? String(state.deliveryFee / 100) : ''}
-                      onChange={(e) => {
-                        const n = Math.max(0, Math.round(Number(e.target.value) * 100));
-                        props.onSetDeliveryFee(Number.isFinite(n) ? n : 0);
-                      }}
-                    />
+                <div className="deliv__head">
+                  <span className="deliv__heading">
+                    <strong className="deliv__label">דמי משלוח</strong>
+                    <span className="deliv__hint">בחרו את הסכום לחיוב</span>
+                  </span>
+                  <output className="deliv__current" aria-live="polite">
+                    {state.deliveryFee === 0 ? 'ללא עלות' : shekels(state.deliveryFee)}
+                  </output>
+                </div>
+                <div className="deliv__controls" role="group" aria-label="דמי משלוח">
+                  <div className="deliv__pills">
+                    {DELIVERY_FEES.map((f) => (
+                      <button
+                        key={f}
+                        className={`deliv__pill ${state.deliveryFee === f ? 'is-active' : ''}`}
+                        aria-pressed={state.deliveryFee === f}
+                        onClick={() => props.onSetDeliveryFee(f)}
+                      >
+                        {shekels(f)}
+                      </button>
+                    ))}
                   </div>
+                  <label className={`deliv__custom ${hasCustomDeliveryFee ? 'is-active' : ''}`}>
+                    <span className="deliv__custom-label">סכום אחר</span>
+                    <span className="deliv__input">
+                      <input
+                        inputMode="numeric"
+                        placeholder="0"
+                        aria-label="דמי משלוח אחר"
+                        value={hasCustomDeliveryFee ? String(state.deliveryFee / 100) : ''}
+                        onChange={(e) => {
+                          const n = Math.max(0, Math.round(Number(e.target.value) * 100));
+                          props.onSetDeliveryFee(Number.isFinite(n) ? n : 0);
+                        }}
+                      />
+                      <span className="deliv__shekel" aria-hidden="true">₪</span>
+                    </span>
+                  </label>
                 </div>
               </div>
             )}

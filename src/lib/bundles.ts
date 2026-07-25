@@ -30,14 +30,35 @@ export function bundlesVersion(): number {
   return version;
 }
 
+interface BundleRow {
+  id: string;
+  name: string;
+  items: Bundle['items'];
+  price: Money;
+  active: boolean;
+  free_toppings?: number | null;
+}
+
+function rowToBundle(row: BundleRow): Bundle {
+  return {
+    id: row.id,
+    name: row.name,
+    items: row.items,
+    price: row.price,
+    active: row.active,
+    freeToppings: row.free_toppings ?? undefined,
+  };
+}
+
 async function fetchBundles(): Promise<void> {
   if (!supabase) return;
-  const { data, error } = await supabase.from('bundles').select('id, name, items, price, active');
+  // select('*') tolerates a DB where the free_toppings column isn't migrated yet.
+  const { data, error } = await supabase.from('bundles').select('*');
   if (error || !data) {
     if (error) console.error('[vino] failed to fetch bundles', error);
     return; // keep serving cache/seed
   }
-  persist(data as Bundle[]);
+  persist((data as BundleRow[]).map(rowToBundle));
   notify();
 }
 
@@ -73,6 +94,16 @@ function persist(list: Bundle[]) {
   }
 }
 
+/** A row was rejected because the free_toppings column isn't in the DB yet. */
+function isMissingFreeToppingsColumn(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return (
+    error.code === '42703' || // Postgres: undefined_column
+    error.code === 'PGRST204' || // PostgREST: column not found in schema cache
+    (error.message?.includes('free_toppings') ?? false)
+  );
+}
+
 /** Upsert a bundle by id; returns the full list after the change. */
 export function saveBundle(bundle: Bundle): Bundle[] {
   const list = loadBundles().filter((b) => b.id !== bundle.id);
@@ -80,13 +111,21 @@ export function saveBundle(bundle: Bundle): Bundle[] {
   persist(list);
   notify();
   if (supabase) {
-    const { id, name, items, price, active } = bundle;
-    void supabase
-      .from('bundles')
-      .upsert({ id, name, items, price, active })
-      .then(({ error }) => {
-        if (error) console.error('[vino] failed to save bundle', error);
-      });
+    const db = supabase;
+    const { id, name, items, price, active, freeToppings } = bundle;
+    const row = { id, name, items, price, active, free_toppings: freeToppings ?? 0 };
+    void (async () => {
+      let { error } = await db.from('bundles').upsert(row);
+      // Older DB without the free_toppings column yet — drop it and retry so
+      // saving never breaks; the perk simply won't persist until the migration
+      // is applied. (Mirrors saveOrder's delivery_fee fallback.)
+      if (isMissingFreeToppingsColumn(error)) {
+        const { free_toppings: _drop, ...rest } = row;
+        void _drop;
+        ({ error } = await db.from('bundles').upsert(rest));
+      }
+      if (error) console.error('[vino] failed to save bundle', error);
+    })();
   }
   return list;
 }
@@ -172,7 +211,13 @@ export function bundleApplication(bundle: Bundle): { lines: CartLine[]; combo: A
   const uid = `ab_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
   return {
     lines: buildBundleLines(bundle, uid),
-    combo: { uid, bundleId: bundle.id, label: bundle.name, price: bundle.price },
+    combo: {
+      uid,
+      bundleId: bundle.id,
+      label: bundle.name,
+      price: bundle.price,
+      freeToppings: bundle.freeToppings,
+    },
   };
 }
 

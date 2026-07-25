@@ -269,6 +269,54 @@ describe('fixed-price combos', () => {
   });
 });
 
+describe('free-topping perk', () => {
+  // p_vino: base ₪95, its recipe (art=3) exactly fills its included allowance
+  // (inc=3), so every ADDED topping here is charged — clean pool to reason about.
+  const pizza = (uid = 'ft') =>
+    line({
+      productId: 'p_vino',
+      bundleUid: uid,
+      parts: [
+        {
+          target: 'whole',
+          baseProductId: 'p_vino',
+          baseName: 'וינו וינו',
+          toppings: [
+            add('t_mushroom', 'פטריות', 500),
+            add('t_bulgarit', 'בולגרית', 700),
+            add('t_pepperoni', 'פפרוני', 700),
+          ],
+        },
+      ],
+    });
+
+  it('waives the priciest N added toppings (best-value-first)', () => {
+    // charged portions [500,700,700]; perk of 2 waives the two ₪7 → ₪14 off,
+    // on top of base netting (₪95 base vs ₪95 deal price = 0).
+    const combo = { uid: 'ft', bundleId: 'b', label: 'תוספות חינם', price: 9500, freeToppings: 2 };
+    expect(combosDiscount([pizza()], [combo])).toBe(1400);
+    // pays base + only the cheapest topping left: 9500 + 500 = 10000
+    expect(orderTotals([pizza()], [], 0, [combo]).total).toBe(10000);
+  });
+
+  it('pools the free toppings across the combo’s pizzas, not per pizza', () => {
+    // two pizzas → charged pool [700,700,700,700,500,500]; perk of 2 = ₪14 total
+    const combo = { uid: 'ft', bundleId: 'b', label: 'תוספות חינם', price: 19000, freeToppings: 2 };
+    expect(combosDiscount([pizza(), pizza()], [combo])).toBe(1400);
+  });
+
+  it('waives nothing when the deal has no perk', () => {
+    const combo = { uid: 'ft', bundleId: 'b', label: 'ללא הטבה', price: 9500, freeToppings: 0 };
+    expect(combosDiscount([pizza()], [combo])).toBe(0);
+  });
+
+  it('never waives more than the toppings actually on the pizza', () => {
+    // perk of 5 but only 3 charged portions → caps at their sum (1900)
+    const combo = { uid: 'ft', bundleId: 'b', label: 'הטבה גדולה', price: 9500, freeToppings: 5 };
+    expect(combosDiscount([pizza()], [combo])).toBe(1900);
+  });
+});
+
 describe('wholePart()', () => {
   it('mirrors the product with no toppings', () => {
     expect(wholePart(productsById['p_vino'])).toEqual({
