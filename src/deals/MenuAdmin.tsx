@@ -15,13 +15,20 @@ export function blankProduct(): Product {
   return { id: newProductId(), categoryId: categories[0]?.id ?? '', name: '', basePrice: 0, active: true };
 }
 
-/** Pizzas gain the builder defaults; toggling one back strips them. */
+/**
+ * Pizza-ness is derived from the category (`pizza`), not a toggle: a product in
+ * the pizza category gains the builder defaults and its `is_pizza`/`split_capable`
+ * columns are written so the order side keeps working; anything else strips them.
+ */
 function normalize(p: Product): Product {
-  if (p.isPizza) return { splitCapable: true, includedToppings: 1, art: [], ...p };
+  if (p.categoryId === 'pizza') {
+    return { splitCapable: true, includedToppings: 0, art: [], ...p, isPizza: true };
+  }
   const rest = { ...p };
   delete rest.isPizza;
   delete rest.splitCapable;
   delete rest.includedToppings;
+  delete rest.freeToppingIds;
   // Salads keep their `art` — it's the list of extras the SaladBuilder offers;
   // other regular dishes don't use it.
   if (p.categoryId !== 'salads') delete rest.art;
@@ -126,10 +133,12 @@ function ProductEditor({ initial, onCancel, onSave, row }: ProductEditorProps) {
     !uploading &&
     (hasVariants ? variantsOk : draft.basePrice > 0);
 
-  // Both pizzas (base recipe) and salads (offered extras) carry a topping list
-  // in `art`; only pizzas have a free-topping allowance.
+  // Pizza-ness is the category, not a toggle. Both pizzas (base recipe) and
+  // salads (offered extras) carry a topping list in `art`; only pizzas have a
+  // free-topping allowance + eligibility whitelist.
+  const isPizza = draft.categoryId === 'pizza';
   const isSalad = draft.categoryId === 'salads';
-  const showArt = !!draft.isPizza || isSalad;
+  const showArt = isPizza || isSalad;
 
   function setPrice(shekelText: string) {
     const n = Math.max(0, Math.round(Number(shekelText) * 100));
@@ -230,28 +239,15 @@ function ProductEditor({ initial, onCancel, onSave, row }: ProductEditorProps) {
             </div>
           </label>
 
-          <div className="dactive">
-            <span className="dfield"><span>סוג</span></span>
-            <div className="seg" role="group" aria-label="סוג פריט">
-              <button
-                className={draft.isPizza ? 'is-active seg--paid' : ''}
-                onClick={() => setDraft({ ...draft, isPizza: true, includedToppings: draft.includedToppings ?? 1 })}
-              >
-                פיצה 🍕
-              </button>
-              <button className={!draft.isPizza ? 'is-active' : ''} onClick={() => setDraft({ ...draft, isPizza: undefined })}>מנה רגילה</button>
-            </div>
-          </div>
-
-          {draft.isPizza && (
+          {isPizza && (
             <label className="dfield">
-              <span>תוספות כלולות (כמה תוספות חינם כלולות במחיר)</span>
+              <span>תוספות חינם (כמה תוספות נוספות חינם מעבר לבסיס)</span>
               <input
                 inputMode="numeric"
                 placeholder="0"
                 value={draft.includedToppings ?? ''}
                 onChange={(e) => setIncluded(e.target.value)}
-                aria-label="תוספות כלולות"
+                aria-label="תוספות חינם"
               />
             </label>
           )}
@@ -308,7 +304,7 @@ function ProductEditor({ initial, onCancel, onSave, row }: ProductEditorProps) {
                       onChange={(e) => setVariant(i, { price: toAgorot(e.target.value) })}
                     />
                   </div>
-                  {draft.isPizza && (
+                  {isPizza && (
                     <select
                       className="dselect vrow__size"
                       value={v.size ?? ''}
@@ -330,8 +326,8 @@ function ProductEditor({ initial, onCancel, onSave, row }: ProductEditorProps) {
           {showArt && (
             <label className="dfield dfield--full">
               <span>
-                {draft.isPizza
-                  ? 'תוספות בבסיס (מה כלול בפיצה כברירת מחדל)'
+                {isPizza
+                  ? 'תוספות בבסיס (המתכון — מה כלול במחיר הפיצה)'
                   : 'תוספות אפשריות (מה אפשר להוסיף לסלט)'}
               </span>
               <select
@@ -342,6 +338,27 @@ function ProductEditor({ initial, onCancel, onSave, row }: ProductEditorProps) {
                 onChange={(e) => {
                   const ids = Array.from(e.target.selectedOptions).map((o) => o.value);
                   setDraft({ ...draft, art: ids });
+                }}
+              >
+                {toppings.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          {isPizza && (
+            <label className="dfield dfield--full">
+              <span>אילו תוספות אפשר לקחת חינם (בטלו סימון לתוספות פרימיום כמו עוף)</span>
+              <select
+                multiple
+                className="dselect dselect--multi"
+                size={Math.min(5, Math.max(4, toppings.length))}
+                value={draft.freeToppingIds ?? toppings.map((t) => t.id)}
+                onChange={(e) => {
+                  const ids = Array.from(e.target.selectedOptions).map((o) => o.value);
+                  // all selected ⇒ store undefined (= all eligible) to keep rows clean
+                  setDraft({ ...draft, freeToppingIds: ids.length === toppings.length ? undefined : ids });
                 }}
               >
                 {toppings.map((t) => (

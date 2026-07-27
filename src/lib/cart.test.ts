@@ -1,8 +1,9 @@
 import { beforeAll, describe, it, expect } from 'vitest';
 import type { CartLine, LinePart, ToppingSel } from '../types';
-import { computeUnitPrice, lineSummary, wholePart, newLineId, lineTotal, linesSubtotal, discountsTotal, orderTotals, sizeOfProduct, toppingPrice, combosDiscount, pricedAddedToppings } from './cart';
+import { computeUnitPrice, lineSummary, wholePart, newLineId, lineTotal, linesSubtotal, discountsTotal, orderTotals, sizeOfProduct, toppingPrice, combosDiscount, pricedAddedToppings, partToppingCharges } from './cart';
 import type { AppliedBundle, Product, Topping } from '../types';
 import { productsById } from '../test/fixtures/catalog';
+import { productsById as menuProducts } from './menuStore';
 import { seedCatalog } from '../test/fixtures/seed';
 
 beforeAll(seedCatalog);
@@ -148,9 +149,9 @@ describe('computeUnitPrice()', () => {
     expect(computeUnitPrice(l)).toBe(6900 + 500);
   });
 
-  it('charges every added topping when the base already includes its toppings', () => {
-    // A preset pie (p_vino: 3 base toppings, included 3) has no free extras —
-    // its price already covers the base, so all 3 additions are charged.
+  it('charges every added topping when the pizza grants no bonus free toppings', () => {
+    // A preset pie (p_vino: recipe in the base price, 0 bonus free) charges every
+    // ADDED topping — the recipe no longer consumes any free allowance.
     const parts: LinePart[] = [
       {
         target: 'whole',
@@ -179,6 +180,77 @@ describe('computeUnitPrice()', () => {
     ];
     const l = line({ productId: 'p_vino', parts });
     expect(computeUnitPrice(l)).toBe(9500 + 1000);
+  });
+});
+
+describe('computeUnitPrice() — bonus free toppings + eligibility whitelist', () => {
+  // A chef pizza priced ₪100 that grants 2 bonus free toppings, but excludes the
+  // premium chicken from the free allowance.
+  const chef: Product = {
+    id: 'p_chef', categoryId: 'pizza', name: 'פיצה עוף', basePrice: 10000, isPizza: true,
+    splitCapable: true, includedToppings: 2, art: [],
+    freeToppingIds: ['t_mushroom', 't_onion', 't_olives', 't_corn'], // NOT chicken
+  };
+  beforeAll(() => { menuProducts[chef.id] = chef; });
+
+  const chefLine = (toppings: ToppingSel[]) =>
+    line({ productId: chef.id, parts: [{ target: 'whole', baseProductId: chef.id, baseName: chef.name, toppings }] });
+
+  it('waives 2 eligible adds free but charges an excluded topping (chicken)', () => {
+    const l = chefLine([
+      add('t_mushroom', 'פטריות', 500),
+      add('t_onion', 'בצל', 500),
+      add('t_chicken', 'נתחי עוף', 900), // excluded from free → always charged
+    ]);
+    expect(computeUnitPrice(l)).toBe(10000 + 900);
+  });
+
+  it('charges eligible adds beyond the free count', () => {
+    const l = chefLine([
+      add('t_mushroom', 'פטריות', 500),
+      add('t_onion', 'בצל', 500),
+      add('t_olives', 'זיתים', 500), // 3rd eligible → over the 2 free
+      add('t_corn', 'תירס', 500),    // 4th eligible → over the 2 free
+    ]);
+    expect(computeUnitPrice(l)).toBe(10000 + 1000);
+  });
+
+  it('waives the priciest eligible toppings first (best-value)', () => {
+    // 1 free slot, two eligible adds at ₪6 and ₪5 → the ₪6 is waived, ₪5 charged
+    const one: Product = { ...chef, id: 'p_one', includedToppings: 1, freeToppingIds: undefined };
+    menuProducts[one.id] = one;
+    const l = line({ productId: one.id, parts: [{ target: 'whole', baseProductId: one.id, baseName: one.name, toppings: [
+      add('t_bulgarit', 'בולגרית', 600),
+      add('t_mushroom', 'פטריות', 500),
+    ] }] });
+    expect(computeUnitPrice(l)).toBe(10000 + 500);
+  });
+
+  it('treats an absent whitelist as all-eligible', () => {
+    const all: Product = { ...chef, id: 'p_all', includedToppings: 2, freeToppingIds: undefined };
+    menuProducts[all.id] = all;
+    const l = line({ productId: all.id, parts: [{ target: 'whole', baseProductId: all.id, baseName: all.name, toppings: [
+      add('t_mushroom', 'פטריות', 500),
+      add('t_chicken', 'נתחי עוף', 900), // now eligible (no whitelist) and priciest → waived
+    ] }] });
+    expect(computeUnitPrice(l)).toBe(10000); // both within the 2 free
+  });
+
+  it('partToppingCharges (builder hints) sums to the line total extras', () => {
+    // The builder badges each topping from partToppingCharges; those must add up
+    // to exactly what the total charges. chef: 2 free, chicken excluded.
+    const toppings: ToppingSel[] = [
+      add('t_mushroom', 'פטריות', 500),
+      add('t_onion', 'בצל', 500),
+      add('t_olives', 'זיתים', 500), // 3rd eligible → charged
+      add('t_chicken', 'נתחי עוף', 900), // excluded → charged
+    ];
+    const part: LinePart = { target: 'whole', baseProductId: chef.id, baseName: chef.name, toppings };
+    const charges = partToppingCharges(part, 2);
+    const badgeSum = [...charges.values()].reduce((a, b) => a + b, 0);
+    expect(charges.get('t_chicken')).toBe(900);
+    expect(badgeSum).toBe(computeUnitPrice(line({ productId: chef.id, parts: [part] })) - 10000);
+    expect(badgeSum).toBe(1400); // olives ₪5 + chicken ₪9
   });
 });
 

@@ -49,6 +49,7 @@ interface ProductRow {
   included_toppings: number | null;
   variants: Product['variants'] | null;
   art: string[] | null;
+  free_topping_ids: string[] | null;
   active: boolean;
   sort: number;
   photo_url?: string | null;
@@ -66,6 +67,7 @@ function rowToProduct(row: ProductRow): Product {
     includedToppings: row.included_toppings ?? undefined,
     variants: row.variants ?? undefined,
     art: row.art ?? undefined,
+    freeToppingIds: row.free_topping_ids ?? undefined,
     active: row.active,
     photoUrl: row.photo_url ?? undefined,
   };
@@ -116,6 +118,7 @@ function productToRow(p: Product, sort: number): ProductRow {
     included_toppings: p.includedToppings ?? null,
     variants: p.variants ?? null,
     art: p.art ?? null,
+    free_topping_ids: p.freeToppingIds ?? null,
     active: p.active !== false,
     sort,
     photo_url: p.photoUrl ?? null,

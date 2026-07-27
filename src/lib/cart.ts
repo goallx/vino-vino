@@ -43,23 +43,57 @@ export function pricedAddedToppings(added: Topping[], size: PizzaSize, slotClaim
   });
 }
 
+/** Is a topping eligible to be taken free on this base pizza? Absent whitelist = all eligible. */
+function freeEligible(baseProductId: string, toppingId: string): boolean {
+  const ids = productsById[baseProductId]?.freeToppingIds;
+  return !ids || ids.includes(toppingId);
+}
+
 /**
  * The added-topping portions on one part that remain *charged* after the free
- * allowance. The product's fixed price already includes its base toppings (its
- * `art`), so those consume the free allowance first: only `includedToppings −
- * baseCount` *added* toppings stay free, the rest are charged. A build-your-own
- * pie (no base art) keeps its full free allowance. Each add expands to its
- * portions (extra = 2) so a doubled topping bills its second portion.
+ * allowance. The pizza's recipe (`art`) is already in the base price and does
+ * NOT consume the allowance. `included` counts *additional* free toppings the
+ * customer may add; the priciest *eligible* added portions are waived
+ * (best-value-first), and every ineligible portion (e.g. chicken on a pizza that
+ * excludes it) is always charged. Each add expands to its portions (extra = 2)
+ * so a doubled topping bills its second portion.
  */
 function partChargedPortions(part: LinePart, included: number): Money[] {
-  const baseCount = productsById[part.baseProductId]?.art?.length ?? 0;
-  const freeAdded = Math.max(0, included - baseCount);
-  const portions: Money[] = [];
+  const eligible: Money[] = []; // waive-able
+  const charged: Money[] = []; // always charged (ineligible)
   for (const t of part.toppings) {
     if (t.action !== 'add') continue;
-    for (let i = 0; i < (t.qty ?? 1); i += 1) portions.push(t.price);
+    const bucket = freeEligible(part.baseProductId, t.toppingId) ? eligible : charged;
+    for (let i = 0; i < (t.qty ?? 1); i += 1) bucket.push(t.price);
   }
-  return portions.slice(freeAdded);
+  // waive the `included` priciest eligible portions; the rest are charged
+  eligible.sort((a, b) => b - a);
+  charged.push(...eligible.slice(Math.max(0, included)));
+  return charged;
+}
+
+/**
+ * Per added-topping charged total for a part, keyed by toppingId (after the free
+ * allowance + eligibility). The builder uses this so its per-topping price hints
+ * match the line total exactly. Mirrors {@link partChargedPortions}'s waiving.
+ */
+export function partToppingCharges(part: LinePart, included: number): Map<string, Money> {
+  interface Portion { id: string; price: number }
+  const eligible: Portion[] = [];
+  const charges = new Map<string, Money>();
+  for (const t of part.toppings) {
+    if (t.action !== 'add') continue;
+    for (let i = 0; i < (t.qty ?? 1); i += 1) {
+      if (freeEligible(part.baseProductId, t.toppingId)) eligible.push({ id: t.toppingId, price: t.price });
+      else charges.set(t.toppingId, (charges.get(t.toppingId) ?? 0) + t.price);
+    }
+  }
+  // waive the `included` priciest eligible portions; sum the rest per topping id
+  eligible.sort((a, b) => b.price - a.price);
+  for (const p of eligible.slice(Math.max(0, included))) {
+    charges.set(p.id, (charges.get(p.id) ?? 0) + p.price);
+  }
+  return charges;
 }
 
 /** Sum of a part's charged added-topping portions. */

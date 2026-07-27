@@ -37,7 +37,8 @@ export interface Product {
   splitCapable?: boolean; // can be built as half / half
   includedToppings?: number; // free toppings per tray/half before charging
   variants?: Variant[]; // size choices — tapping opens the size popover
-  art?: string[]; // topping ids depicted on the pizza illustration
+  art?: string[]; // topping ids depicted on the pizza illustration (the recipe, in the base price)
+  freeToppingIds?: string[]; // topping ids eligible to be added free; absent = all eligible
   active?: boolean; // owner availability toggle; absent = available
   photoUrl?: string; // Supabase Storage public URL, uploaded from the menu admin
 }

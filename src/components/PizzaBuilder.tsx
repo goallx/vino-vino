@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import type { CartLine, LinePart, PizzaSize, Product, Target, ToppingSel } from '../types';
 import { pizzaProducts, productsById, toppings, toppingsById } from '../lib/menuStore';
-import { computeUnitPrice, newLineId, pricedAddedToppings, sizeOfProduct, toppingPrice } from '../lib/cart';
+import { computeUnitPrice, newLineId, partToppingCharges, pricedAddedToppings, sizeOfProduct } from '../lib/cart';
 import { shekels } from '../lib/money';
 import { PizzaArt } from './PizzaArt';
 import { ToppingIcon } from './toppings';
@@ -88,7 +88,7 @@ export function PizzaBuilder({ product, editing, onCancel, onConfirm }: BuilderP
   const setActive = !isSplit ? setWhole : activeHalf === 'half_1' ? setH1 : setH2;
 
   const size = sizeOfProduct(product, variantLabel);
-  const included = product.includedToppings ?? 1;
+  const included = product.includedToppings ?? 0;
 
   // Cycle a topping: off → on (×1) → extra (×2, כפול) → off.
   function cycleTopping(id: string) {
@@ -103,18 +103,19 @@ export function PizzaBuilder({ product, editing, onCancel, onConfirm }: BuilderP
     }
   }
 
-  // toppings that are extras (not part of the base) — these are what gets charged.
-  // The base toppings are already in the price, so they consume the free
-  // allowance first: only `included − baseCount` further toppings stay free.
+  // The recipe (base) toppings are in the price and shown as "· בסיס". Charges
+  // for the active part come straight from cart, so each row's "+₪" hint matches
+  // the line total: recipe is free, the `included` priciest *eligible* added
+  // toppings are waived, and ineligible/over-allowance toppings are charged
+  // (opening-price + doubles already baked in).
   const defaults = artOf(active.baseProductId);
-  const freeExtra = Math.max(0, included - defaults.length);
-  const extras = active.selected.filter((id) => !defaults.includes(id));
-  // Which added topping fills the single "opening price" slot (first starter) —
-  // none if the pie's recipe already carries a starter (its base spends the slot).
-  const baseStarterOnPizza = active.selected.some((id) => defaults.includes(id) && toppingsById[id]?.starter);
-  const starterId = baseStarterOnPizza
-    ? undefined
-    : active.selected.find((id) => (!defaults.includes(id) || active.extra.includes(id)) && toppingsById[id]?.starter);
+  const activePart: LinePart = {
+    target: !isSplit ? 'whole' : activeHalf,
+    baseProductId: active.baseProductId,
+    baseName: '',
+    toppings: partToppings(active.baseProductId, active.selected, active.extra, size),
+  };
+  const charges = partToppingCharges(activePart, included);
 
   function buildParts(): LinePart[] {
     const part = (state: HalfState, target: Target): LinePart => {
@@ -220,8 +221,8 @@ export function PizzaBuilder({ product, editing, onCancel, onConfirm }: BuilderP
                 const on = active.selected.includes(t.id);
                 const isExtra = active.extra.includes(t.id);
                 const isDefault = defaults.includes(t.id);
-                const extraIdx = extras.indexOf(t.id);
-                const charged = (on && !isDefault && extraIdx >= freeExtra) || isExtra;
+                const chargedAmt = charges.get(t.id) ?? 0;
+                const charged = chargedAmt > 0;
                 return (
                   <button
                     key={t.id}
@@ -235,7 +236,7 @@ export function PizzaBuilder({ product, editing, onCancel, onConfirm }: BuilderP
                       {isExtra && <span className="toprow__x2"> · כפול</span>}
                       {isDefault && on && !isExtra && <span className="toprow__base"> · בסיס</span>}
                     </span>
-                    {charged && <span className="toprow__price">+{shekels(t.id === starterId ? toppingPrice(t, 'personal') : toppingPrice(t, size))}</span>}
+                    {charged && <span className="toprow__price">+{shekels(chargedAmt)}</span>}
                     <span className="toprow__check">{isExtra ? '×2' : on ? '✓' : '+'}</span>
                   </button>
                 );

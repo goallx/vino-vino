@@ -18,19 +18,22 @@ export const categories: Category[] = [
 
 export const products: Product[] = [
   // --- signature pizzas (family size, can be a half) ---
-  { id: 'p_vino', categoryId: 'pizza', name: 'וינו וינו', description: 'פפרוני, ירקות, בולגרית', basePrice: 9500, isPizza: true, splitCapable: true, includedToppings: 3, art: ['t_pepperoni', 't_pepper', 't_bulgarit'] },
-  { id: 'p_shchitut', categoryId: 'pizza', name: 'שחיתות', description: 'סלמי, פפרוני, אווז', basePrice: 9500, isPizza: true, splitCapable: true, includedToppings: 3, art: ['t_salami', 't_pepperoni', 't_goose'] },
-  { id: 'p_monte', categoryId: 'pizza', name: 'מונטקרלו', description: 'אווז, פטריות, בצל', basePrice: 9500, isPizza: true, splitCapable: true, includedToppings: 3, art: ['t_goose', 't_mushroom', 't_onion'] },
-  { id: 'p_asia', categoryId: 'pizza', name: 'אסיאתית', description: 'פפרוני, תירס, גמבה, אננס', basePrice: 9500, isPizza: true, splitCapable: true, includedToppings: 3, art: ['t_pepperoni', 't_corn', 't_pepper', 't_pineapple'] },
-  { id: 'p_romana', categoryId: 'pizza', name: 'רומנה', description: 'פלפל, זיתים, סלמי', basePrice: 9000, isPizza: true, splitCapable: true, includedToppings: 3, art: ['t_pepper', 't_olives', 't_salami'] },
-  { id: 'p_chicken', categoryId: 'pizza', name: 'צ׳יקן', description: 'נתחי עוף וירקות', basePrice: 10000, isPizza: true, splitCapable: true, includedToppings: 3, art: ['t_chicken', 't_pepper', 't_corn'] },
-  { id: 'p_mex', categoryId: 'pizza', name: 'מקסיקנית', description: 'סלמי, חלפיניו, עגבניה, בולגרית', basePrice: 9500, isPizza: true, splitCapable: true, includedToppings: 3, art: ['t_salami', 't_jalapeno', 't_tomato', 't_bulgarit'] },
-  { id: 'p_pesto', categoryId: 'pizza', name: 'פסטו', description: 'רוטב פסטו, בולגרית', basePrice: 9500, isPizza: true, splitCapable: true, includedToppings: 3, art: ['t_bulgarit', 't_tomato'] },
-  { id: 'p_alfredo', categoryId: 'pizza', name: 'אלפרדו', description: 'רוטב אלפרדו, פטריות', basePrice: 9500, isPizza: true, splitCapable: true, includedToppings: 3, art: ['t_mushroom', 't_extra_cheese'] },
-  { id: 'p_veg', categoryId: 'pizza', name: 'ירקות', description: 'פטריות, בצל, פלפל, זיתים', basePrice: 9000, isPizza: true, splitCapable: true, includedToppings: 3, art: ['t_mushroom', 't_onion', 't_pepper', 't_olives'] },
-  { id: 'p_vegan', categoryId: 'pizza', name: '🌱 טבעונית', description: 'זיתים, פטריות, גמבה, בצל, תירס, עגבניות', basePrice: 7000, isPizza: true, splitCapable: true, includedToppings: 3, art: ['t_olives', 't_mushroom', 't_pepper', 't_onion', 't_corn', 't_tomato'] },
+  // `includedToppings` = free adds BEYOND the recipe (`art`). The recipe is free
+  // in the base price and no longer consumes the allowance, so these mirror the
+  // post-migration DB (old `included` minus recipe size ⇒ 0 bonus here).
+  { id: 'p_vino', categoryId: 'pizza', name: 'וינו וינו', description: 'פפרוני, ירקות, בולגרית', basePrice: 9500, isPizza: true, splitCapable: true, includedToppings: 0, art: ['t_pepperoni', 't_pepper', 't_bulgarit'] },
+  { id: 'p_shchitut', categoryId: 'pizza', name: 'שחיתות', description: 'סלמי, פפרוני, אווז', basePrice: 9500, isPizza: true, splitCapable: true, includedToppings: 0, art: ['t_salami', 't_pepperoni', 't_goose'] },
+  { id: 'p_monte', categoryId: 'pizza', name: 'מונטקרלו', description: 'אווז, פטריות, בצל', basePrice: 9500, isPizza: true, splitCapable: true, includedToppings: 0, art: ['t_goose', 't_mushroom', 't_onion'] },
+  { id: 'p_asia', categoryId: 'pizza', name: 'אסיאתית', description: 'פפרוני, תירס, גמבה, אננס', basePrice: 9500, isPizza: true, splitCapable: true, includedToppings: 0, art: ['t_pepperoni', 't_corn', 't_pepper', 't_pineapple'] },
+  { id: 'p_romana', categoryId: 'pizza', name: 'רומנה', description: 'פלפל, זיתים, סלמי', basePrice: 9000, isPizza: true, splitCapable: true, includedToppings: 0, art: ['t_pepper', 't_olives', 't_salami'] },
+  { id: 'p_chicken', categoryId: 'pizza', name: 'צ׳יקן', description: 'נתחי עוף וירקות', basePrice: 10000, isPizza: true, splitCapable: true, includedToppings: 0, art: ['t_chicken', 't_pepper', 't_corn'] },
+  { id: 'p_mex', categoryId: 'pizza', name: 'מקסיקנית', description: 'סלמי, חלפיניו, עגבניה, בולגרית', basePrice: 9500, isPizza: true, splitCapable: true, includedToppings: 0, art: ['t_salami', 't_jalapeno', 't_tomato', 't_bulgarit'] },
+  { id: 'p_pesto', categoryId: 'pizza', name: 'פסטו', description: 'רוטב פסטו, בולגרית', basePrice: 9500, isPizza: true, splitCapable: true, includedToppings: 1, art: ['t_bulgarit', 't_tomato'] },
+  { id: 'p_alfredo', categoryId: 'pizza', name: 'אלפרדו', description: 'רוטב אלפרדו, פטריות', basePrice: 9500, isPizza: true, splitCapable: true, includedToppings: 1, art: ['t_mushroom', 't_extra_cheese'] },
+  { id: 'p_veg', categoryId: 'pizza', name: 'ירקות', description: 'פטריות, בצל, פלפל, זיתים', basePrice: 9000, isPizza: true, splitCapable: true, includedToppings: 0, art: ['t_mushroom', 't_onion', 't_pepper', 't_olives'] },
+  { id: 'p_vegan', categoryId: 'pizza', name: '🌱 טבעונית', description: 'זיתים, פטריות, גמבה, בצל, תירס, עגבניות', basePrice: 7000, isPizza: true, splitCapable: true, includedToppings: 0, art: ['t_olives', 't_mushroom', 't_pepper', 't_onion', 't_corn', 't_tomato'] },
 
-  // --- build-your-own (the half/half base) ---
+  // --- build-your-own (the half/half base) — no recipe, so the full 3 are bonus ---
   { id: 'b_personal', categoryId: 'build', name: 'אישית בהרכבה', description: 'רוטב, גבינה צהובה', basePrice: 3500, isPizza: true, splitCapable: true, includedToppings: 3, art: [] },
   { id: 'b_family', categoryId: 'build', name: 'משפחתית בהרכבה', description: 'רוטב, גבינה צהובה', basePrice: 6900, isPizza: true, splitCapable: true, includedToppings: 3, art: [] },
 
