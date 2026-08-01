@@ -1,4 +1,4 @@
-import type { AppliedBundle, AppliedCombo, CartLine, LinePart, Money, PizzaSize, Product, Topping } from '../types';
+import type { AppliedBundle, AppliedCombo, CartLine, LinePart, ManualDiscount, Money, PizzaSize, Product, Topping } from '../types';
 import { productsById } from './menuStore';
 
 let counter = 0;
@@ -58,16 +58,19 @@ function freeEligible(baseProductId: string, toppingId: string): boolean {
  * excludes it) is always charged. Each add expands to its portions (extra = 2)
  * so a doubled topping bills its second portion.
  */
-function partChargedPortions(part: LinePart, included: number): Money[] {
-  const eligible: Money[] = []; // waive-able
-  const charged: Money[] = []; // always charged (ineligible)
+/** One charged added-topping portion — the topping id lets a deal perk filter by eligibility. */
+interface ChargedPortion { id: string; price: Money }
+
+function partChargedPortions(part: LinePart, included: number): ChargedPortion[] {
+  const eligible: ChargedPortion[] = []; // waive-able
+  const charged: ChargedPortion[] = []; // always charged (ineligible)
   for (const t of part.toppings) {
     if (t.action !== 'add') continue;
     const bucket = freeEligible(part.baseProductId, t.toppingId) ? eligible : charged;
-    for (let i = 0; i < (t.qty ?? 1); i += 1) bucket.push(t.price);
+    for (let i = 0; i < (t.qty ?? 1); i += 1) bucket.push({ id: t.toppingId, price: t.price });
   }
   // waive the `included` priciest eligible portions; the rest are charged
-  eligible.sort((a, b) => b - a);
+  eligible.sort((a, b) => b.price - a.price);
   charged.push(...eligible.slice(Math.max(0, included)));
   return charged;
 }
@@ -98,7 +101,7 @@ export function partToppingCharges(part: LinePart, included: number): Map<string
 
 /** Sum of a part's charged added-topping portions. */
 function partExtraCost(part: LinePart, included: number): Money {
-  return partChargedPortions(part, included).reduce((sum, p) => sum + p, 0);
+  return partChargedPortions(part, included).reduce((sum, p) => sum + p.price, 0);
 }
 
 /**
@@ -106,7 +109,7 @@ function partExtraCost(part: LinePart, included: number): Money {
  * the line's own free allowance. Used to price a deal's free-topping perk: the
  * perk waives the priciest of these across the combo's pizzas.
  */
-export function chargedToppingPortions(line: CartLine): Money[] {
+export function chargedToppingPortions(line: CartLine): ChargedPortion[] {
   const product = productsById[line.productId];
   if (!product?.isPizza) return [];
   const included = product.includedToppings ?? 0;
@@ -161,20 +164,60 @@ export function discountsTotal(discounts: AppliedBundle[]): Money {
 }
 
 /**
- * A deal's free-topping perk: it waives the `freeToppings` priciest charged
- * added-topping portions across the combo's pizzas (best-value-first, so the
- * customer's most expensive toppings come off). Returns the saving in agorot.
+ * The agorot value of an ad-hoc owner discount against a base amount (the
+ * items subtotal net of any deals). A percent discount rounds to the agora; a
+ * fixed discount is capped at the base so the order never goes negative.
  */
-export function comboFreeToppingsSaving(members: CartLine[], freeToppings = 0): Money {
+export function manualDiscountAmount(md: ManualDiscount | undefined, base: Money): Money {
+  if (!md || md.value <= 0 || base <= 0) return 0;
+  if (md.kind === 'percent') {
+    const raw = (base * Math.min(100, md.value)) / 100;
+    // Round the *final* price up to a whole shekel (₪13 − 10% = ₪11.70 → ₪12),
+    // so the owner never quotes agorot. A tiny percentage that rounds away
+    // clamps to no discount rather than nudging the price up.
+    const discounted = Math.ceil((base - raw) / 100) * 100;
+    return Math.max(0, Math.min(base, base - discounted));
+  }
+  return Math.min(base, Math.round(md.value));
+}
+
+/** The owner discount as an AppliedBundle so it flows through totals/kitchen/reports like any deal. */
+export function manualDiscountBundle(md: ManualDiscount | undefined, base: Money): AppliedBundle | null {
+  const amount = manualDiscountAmount(md, base);
+  if (amount <= 0) return null;
+  const label = md!.kind === 'percent' ? `הנחה ${md!.value}%` : 'הנחה';
+  return { uid: 'manual', bundleId: 'manual', label, amount };
+}
+
+/**
+ * A deal's free-topping perk: it waives the `freeToppings` priciest charged
+ * added-topping portions *on each pizza independently* (best-value-first, so the
+ * customer's most expensive *eligible* toppings come off). The allowance is
+ * per-pizza, NOT a shared pool — a pizza can't spend another pizza's free slots,
+ * so `freeToppings: 1` on a 2-pizza deal means one free topping on each.
+ * `eligibleIds` limits which toppings the perk covers — a premium topping the
+ * deal excludes (e.g. chicken/goose) is never waived and stays charged. Absent =
+ * every topping is eligible. Returns the total saving in agorot.
+ */
+export function comboFreeToppingsSaving(
+  members: CartLine[],
+  freeToppings = 0,
+  eligibleIds?: string[],
+): Money {
   if (freeToppings <= 0) return 0;
-  const portions = members.flatMap(chargedToppingPortions).sort((a, b) => b - a);
-  return portions.slice(0, freeToppings).reduce((sum, p) => sum + p, 0);
+  return members.reduce((total, line) => {
+    const portions = chargedToppingPortions(line)
+      .filter((p) => !eligibleIds || eligibleIds.includes(p.id))
+      .map((p) => p.price)
+      .sort((a, b) => b - a);
+    return total + portions.slice(0, freeToppings).reduce((sum, p) => sum + p, 0);
+  }, 0);
 }
 
 /** A combo's full saving: base-price netting plus its free-topping perk. */
 function comboSaving(members: CartLine[], combo: AppliedCombo): Money {
   const base = members.reduce((s, l) => s + lineBasePrice(l) * l.qty, 0);
-  return Math.max(0, base - combo.price) + comboFreeToppingsSaving(members, combo.freeToppings);
+  return Math.max(0, base - combo.price) + comboFreeToppingsSaving(members, combo.freeToppings, combo.freeToppingIds);
 }
 
 /**
@@ -229,9 +272,10 @@ export function wholePart(product: Product): LinePart {
   return { target: 'whole', baseProductId: product.id, baseName: product.name, toppings: [] };
 }
 
-// Only pizzas, salads and meat meals are customizable — drinks, desserts and
-// sides are added as-is with no edit page.
-const EDITABLE_CATEGORIES = new Set(['salads', 'meat']);
+// Only pizzas and salads are customizable — meat meals, drinks, desserts and
+// sides are added as-is with no edit page. (Meat meals lack a dedicated builder
+// for now, and must not fall through to the pizza editor.)
+const EDITABLE_CATEGORIES = new Set(['salads']);
 export function isEditableLine(line: CartLine): boolean {
   const p = productsById[line.productId];
   if (!p) return false;

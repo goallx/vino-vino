@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useAuthOptional } from '../auth/AuthContext';
 import { ShiftSummaryModal } from './ShiftSummaryModal';
 import { ShiftHistoryModal } from './ShiftHistoryModal';
 
@@ -9,13 +10,20 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
+interface Tile {
+  name: string;
+  sub: string;
+  href?: string;
+  onClick?: () => void;
+}
+
 /**
- * The "manager's chit": everything that used to crowd the topbar —
- * admin pages, the other screens — grouped in one panel.
- * Links navigate in place (no new tab — tablet browsers hide tabs and a
- * stray one is easy to lose); the in-progress order is autosaved as a draft.
+ * The manager's hub: a full-screen grid of everything off the order screen —
+ * the other displays, admin pages, and the cash tools — grouped by area.
+ * Links navigate in place (tablet browsers hide tabs; the order autosaves).
  */
 export function SettingsModal({ username, onShiftClosed, onClose }: SettingsModalProps) {
+  const auth = useAuthOptional();
   const [shiftOpen, setShiftOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
 
@@ -27,85 +35,70 @@ export function SettingsModal({ username, onShiftClosed, onClose }: SettingsModa
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  const groups: { title: string; tiles: Tile[] }[] = [
+    {
+      title: 'ניהול',
+      tiles: [
+        { name: 'תפריט', sub: 'מוצרים, מחירים, זמינות', href: '/menu' },
+        { name: 'מבצעים', sub: 'קופונים וחבילות', href: '/deals' },
+      ],
+    },
+    {
+      title: 'קופה',
+      tiles: [
+        { name: 'סגירת משמרת', sub: 'סיכום קופה ותשלום לשליח', onClick: () => setShiftOpen(true) },
+        { name: 'היסטוריית משמרות', sub: 'משמרות שנסגרו — הכנסות ותשלומים', onClick: () => setHistoryOpen(true) },
+      ],
+    },
+    {
+      title: 'דוחות',
+      tiles: [{ name: 'דוח יומי', sub: 'הכנסות ונתוני מכירה', href: '/reports' }],
+    },
+  ];
+
+  const renderTile = (t: Tile) =>
+    t.href ? (
+      <a key={t.name} className="hubtile" href={t.href}>
+        <span className="hubtile__name">{t.name}</span>
+        <span className="hubtile__sub">{t.sub}</span>
+      </a>
+    ) : (
+      <button key={t.name} type="button" className="hubtile" onClick={t.onClick}>
+        <span className="hubtile__name">{t.name}</span>
+        <span className="hubtile__sub">{t.sub}</span>
+      </button>
+    );
+
   return (
-    <div className="scrim" onClick={onClose}>
-      <div
-        className="settings"
-        role="dialog"
-        aria-modal="true"
-        aria-label="הגדרות"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="scrim scrim--settings" onClick={onClose}>
+      <div className="settings" role="dialog" aria-modal="true" aria-label="הגדרות" onClick={(e) => e.stopPropagation()}>
         <div className="settings__head">
           <h2 className="settings__title">הגדרות</h2>
+          <div className="settings__spacer" />
           {username && <span className="settings__user">{username}</span>}
-          <button className="settings__x" onClick={onClose} aria-label="סגירה" autoFocus>
-            ✕
-          </button>
+          <button className="settings__x" onClick={onClose} aria-label="סגירה" autoFocus>✕</button>
         </div>
-        <div className="settings__perf" aria-hidden="true" />
 
         <div className="settings__body">
-          <section className="sgroup" aria-label="ניהול">
-            <h3 className="sgroup__label">ניהול</h3>
-            <a className="srow" href="/menu">
-              <span className="srow__icon" aria-hidden="true">📋</span>
-              <span className="srow__text">
-                <span className="srow__name">תפריט</span>
-                <span className="srow__desc">הוספה ועריכה של פריטים ומחירים</span>
-              </span>
-              <span className="srow__go" aria-hidden="true">←</span>
-            </a>
-            <a className="srow" href="/deals">
-              <span className="srow__icon" aria-hidden="true">🏷️</span>
-              <span className="srow__text">
-                <span className="srow__name">מבצעים</span>
-                <span className="srow__desc">חבילות במחיר קבוע</span>
-              </span>
-              <span className="srow__go" aria-hidden="true">←</span>
-            </a>
-          </section>
-
-          <section className="sgroup" aria-label="מסכים">
-            <h3 className="sgroup__label">מסכים</h3>
-            <a className="srow" href="/orders">
-              <span className="srow__icon" aria-hidden="true">🧾</span>
-              <span className="srow__text">
-                <span className="srow__name">הזמנות</span>
-                <span className="srow__desc">כל ההזמנות של היום</span>
-              </span>
-              <span className="srow__go" aria-hidden="true">←</span>
-            </a>
-            <a className="srow" href="/reports">
-              <span className="srow__icon" aria-hidden="true">📈</span>
-              <span className="srow__text">
-                <span className="srow__name">דוח יומי</span>
-                <span className="srow__desc">הכנסות ונתוני מכירה</span>
-              </span>
-              <span className="srow__go" aria-hidden="true">←</span>
-            </a>
-          </section>
-
-          <section className="sgroup" aria-label="קופה">
-            <h3 className="sgroup__label">קופה</h3>
-            <button type="button" className="srow" onClick={() => setShiftOpen(true)}>
-              <span className="srow__icon" aria-hidden="true">💰</span>
-              <span className="srow__text">
-                <span className="srow__name">סגירת משמרת</span>
-                <span className="srow__desc">סיכום הכנסות ותשלום לשליח</span>
-              </span>
-              <span className="srow__go" aria-hidden="true">←</span>
-            </button>
-            <button type="button" className="srow" onClick={() => setHistoryOpen(true)}>
-              <span className="srow__icon" aria-hidden="true">📅</span>
-              <span className="srow__text">
-                <span className="srow__name">היסטוריית משמרות</span>
-                <span className="srow__desc">משמרות שנסגרו — הכנסות ותשלומים</span>
-              </span>
-              <span className="srow__go" aria-hidden="true">←</span>
-            </button>
-          </section>
+          <div className="hub">
+            {groups.map((g) => (
+              <section key={g.title} className="hubcard" aria-label={g.title}>
+                <span className="hubcard__label">{g.title}</span>
+                {g.tiles.map(renderTile)}
+              </section>
+            ))}
+          </div>
         </div>
+
+        <footer className="settings__foot">
+          {username && (
+            <span className="settings__conn">
+              מחובר כ־<strong>{username}</strong>
+            </span>
+          )}
+          <div className="settings__spacer" />
+          <button className="settings__logout" onClick={() => void auth?.signOut()}>התנתקות</button>
+        </footer>
       </div>
 
       {shiftOpen && (

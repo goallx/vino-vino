@@ -37,6 +37,7 @@ interface BundleRow {
   price: Money;
   active: boolean;
   free_toppings?: number | null;
+  free_topping_ids?: string[] | null;
 }
 
 function rowToBundle(row: BundleRow): Bundle {
@@ -47,6 +48,7 @@ function rowToBundle(row: BundleRow): Bundle {
     price: row.price,
     active: row.active,
     freeToppings: row.free_toppings ?? undefined,
+    freeToppingIds: row.free_topping_ids ?? undefined,
   };
 }
 
@@ -94,13 +96,13 @@ function persist(list: Bundle[]) {
   }
 }
 
-/** A row was rejected because the free_toppings column isn't in the DB yet. */
-function isMissingFreeToppingsColumn(error: { code?: string; message?: string } | null): boolean {
+/** A row was rejected because a perk column (free_toppings / free_topping_ids) isn't in the DB yet. */
+function isMissingPerkColumn(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false;
   return (
     error.code === '42703' || // Postgres: undefined_column
     error.code === 'PGRST204' || // PostgREST: column not found in schema cache
-    (error.message?.includes('free_toppings') ?? false)
+    (error.message?.includes('free_topping') ?? false) // matches free_toppings and free_topping_ids
   );
 }
 
@@ -112,16 +114,20 @@ export function saveBundle(bundle: Bundle): Bundle[] {
   notify();
   if (supabase) {
     const db = supabase;
-    const { id, name, items, price, active, freeToppings } = bundle;
-    const row = { id, name, items, price, active, free_toppings: freeToppings ?? 0 };
+    const { id, name, items, price, active, freeToppings, freeToppingIds } = bundle;
+    const row = {
+      id, name, items, price, active,
+      free_toppings: freeToppings ?? 0,
+      free_topping_ids: freeToppingIds ?? null,
+    };
     void (async () => {
       let { error } = await db.from('bundles').upsert(row);
-      // Older DB without the free_toppings column yet — drop it and retry so
-      // saving never breaks; the perk simply won't persist until the migration
-      // is applied. (Mirrors saveOrder's delivery_fee fallback.)
-      if (isMissingFreeToppingsColumn(error)) {
-        const { free_toppings: _drop, ...rest } = row;
-        void _drop;
+      // Older DB without the perk columns yet — drop them and retry so saving
+      // never breaks; the perk simply won't persist until the migration is
+      // applied. (Mirrors saveOrder's delivery_fee fallback.)
+      if (isMissingPerkColumn(error)) {
+        const { free_toppings: _t, free_topping_ids: _ids, ...rest } = row;
+        void _t; void _ids;
         ({ error } = await db.from('bundles').upsert(rest));
       }
       if (error) console.error('[vino] failed to save bundle', error);
@@ -217,6 +223,7 @@ export function bundleApplication(bundle: Bundle): { lines: CartLine[]; combo: A
       label: bundle.name,
       price: bundle.price,
       freeToppings: bundle.freeToppings,
+      freeToppingIds: bundle.freeToppingIds,
     },
   };
 }

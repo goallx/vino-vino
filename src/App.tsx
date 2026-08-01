@@ -249,13 +249,20 @@ export default function App({ username }: AppProps = {}) {
   return (
     <div className="app">
       <header className="topbar">
-        <Wordmark className="brand" />
-        <span className="topbar__sub">קבלת הזמנות</span>
-        <a className="topbar__link topbar__link--push" href="/kitchen">
-          מסך מטבח
-        </a>
-        <button className="topbar__link" onClick={() => setSettingsOpen(true)}>
-          ⚙ הגדרות
+        <div className="topbar__brand">
+          <Wordmark className="brand" />
+          <span className="topbar__dot" aria-hidden="true" />
+        </div>
+        <div className="topbar__div" aria-hidden="true" />
+        <nav className="topnav" aria-label="ניווט">
+          <a className="topnav__link is-active" href="/">הזמנה</a>
+          <a className="topnav__link" href="/kitchen">מטבח</a>
+          <a className="topnav__link" href="/orders">הזמנות</a>
+        </nav>
+        <div className="topbar__spacer" />
+        {username && <span className="topbar__user">{username}</span>}
+        <button className="topbar__gear" onClick={() => setSettingsOpen(true)} aria-label="הגדרות">
+          ⚙
         </button>
       </header>
 
@@ -289,6 +296,8 @@ export default function App({ username }: AppProps = {}) {
             onBack={() => setPhase('build')}
             onSend={send}
             onSetDeliveryFee={(fee) => dispatch({ kind: 'setDeliveryFee', fee })}
+            manualDiscount={state.manualDiscount}
+            onSetDiscount={(discount) => dispatch({ kind: 'setDiscount', discount })}
             canSend={state.lines.length > 0}
             sending={sending}
             match={match}

@@ -106,8 +106,9 @@ export function Reports() {
           <span className="rtop__date">{range.label}</span>
         </div>
         <nav className="rtop__nav">
-          <a href="/">קבלת הזמנות</a>
-          <a href="/kitchen">מסך מטבח</a>
+          <a href="/">← הזמנה</a>
+          <a href="/kitchen">מטבח</a>
+          <a href="/orders">הזמנות</a>
         </nav>
       </header>
 

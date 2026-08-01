@@ -29,6 +29,7 @@ describe('orders list + cancel', () => {
     render(<Orders />);
 
     const row = screen.getByText('#07').closest('.orow') as HTMLElement;
+    await user.click(within(row).getByRole('button', { name: 'הצג פרטים' })); // expand to reveal actions
     await user.click(within(row).getByRole('button', { name: 'ביטול הזמנה' }));
     // confirm step
     await user.click(within(row).getByRole('button', { name: 'כן, בטל' }));
@@ -47,6 +48,7 @@ describe('orders list + cancel', () => {
     const user = userEvent.setup();
     publishOrder(ord({ id: 'a', number: 7 }));
     render(<Orders />);
+    await user.click(screen.getByRole('button', { name: 'הצג פרטים' })); // expand to reveal actions
     await user.click(screen.getByRole('button', { name: 'ביטול הזמנה' }));
     await user.click(screen.getByRole('button', { name: 'חזור' }));
     expect(screen.getByText('#07')).toBeInTheDocument();

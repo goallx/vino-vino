@@ -20,30 +20,21 @@ interface TicketProps {
 }
 
 export function Ticket(props: TicketProps) {
-  const { state, setQty, subtotal, discountTotal, total, orderNumber } = props;
+  const { state, setQty, discountTotal, total, orderNumber } = props;
   const hasDiscount = discountTotal > 0;
+  const lineCount = state.lines.reduce((n, l) => n + l.qty, 0);
 
   return (
     <aside className="ticket" aria-label="הזמנה נוכחית">
-      <div className="ticket__perf" aria-hidden="true" />
-
       <header className="ticket__head">
-        <div>
-          <p className="ticket__eyebrow">הזמנה</p>
-          <p className="ticket__number" data-testid="order-number">#{String(orderNumber).padStart(2, '0')}</p>
+        <p className="ticket__number" data-testid="order-number">#{String(orderNumber).padStart(2, '0')}</p>
+        <div className="ticket__headings">
+          <span className="ticket__eyebrow">הזמנה נוכחית</span>
+          <span className="ticket__count">{lineCount > 0 ? `${lineCount} פריטים` : 'ריק'}</span>
         </div>
-        <div className="ticket__head-actions">
-          <button
-            className="ticket__restart"
-            onClick={props.onNewOrder}
-            aria-label="התחל הזמנה מחדש"
-            title="התחל הזמנה מחדש"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7" />
-            </svg>
-          </button>
-        </div>
+        <button className="ticket__newbtn" onClick={props.onNewOrder} title="התחל הזמנה מחדש">
+          הזמנה חדשה
+        </button>
       </header>
 
       <div className="lines" role="list">
@@ -74,11 +65,12 @@ export function Ticket(props: TicketProps) {
                   <span key={l.qty} className="stepper__qty">{l.qty}</span>
                   <button onClick={() => setQty(l.id, l.qty + 1)} aria-label="הוסף">+</button>
                 </div>
+                <span className="line__each">{shekels(computeUnitPrice(l))} ליח׳</span>
                 <div className="line__tools">
                   {isEditableLine(l) && (
-                    <button onClick={() => props.onEditLine(l)} aria-label="ערוך">✎ עריכה</button>
+                    <button onClick={() => props.onEditLine(l)} aria-label="ערוך">✎</button>
                   )}
-                  <button onClick={() => props.onRemoveLine(l)} aria-label="מחק">🗑</button>
+                  <button className="line__del" onClick={() => props.onRemoveLine(l)} aria-label="מחק">✕</button>
                 </div>
               </div>
             </div>
@@ -116,17 +108,14 @@ export function Ticket(props: TicketProps) {
             <span className="total__saving" data-testid="ticket-saving">−{shekels(discountTotal)}</span>
           </div>
         )}
-        <div className="total">
+        <div className="total total--grand">
           <span>סה״כ</span>
-          <span className="total__wrap">
-            {hasDiscount && <span className="total__was">{shekels(subtotal)}</span>}
-            <span className="total__amount" data-testid="ticket-total" key={total}>
-              {shekels(total)}
-            </span>
+          <span className="total__amount" data-testid="ticket-total" key={total}>
+            {shekels(total)}
           </span>
         </div>
         <button className="btn btn--send" disabled={!props.canContinue} onClick={props.onContinue}>
-          המשך לפרטי הזמנה
+          המשך ←
         </button>
       </footer>
     </aside>

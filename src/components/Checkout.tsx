@@ -1,4 +1,5 @@
-import type { PastOrder } from '../types';
+import { useState } from 'react';
+import type { ManualDiscount, PastOrder } from '../types';
 import type { OrderState } from '../state/order';
 import { computeUnitPrice } from '../lib/cart';
 import { shekels } from '../lib/money';
@@ -6,6 +7,7 @@ import { ReorderPanel } from './ReorderPanel';
 import type { StoredCustomer, AddressSuggestion } from '../lib/customers';
 
 const DELIVERY_FEES = [1000, 1500, 2000, 2500, 3000]; // ₪10 / ₪15 / ₪20 / ₪25 / ₪30, in agorot
+const DISCOUNT_PCTS = [5, 10, 15, 20]; // quick-pick owner discount percentages
 
 interface CheckoutProps {
   state: OrderState;
@@ -17,6 +19,8 @@ interface CheckoutProps {
   onBack: () => void;
   onSend: () => void;
   onSetDeliveryFee: (fee: number) => void;
+  manualDiscount?: ManualDiscount;
+  onSetDiscount: (d: ManualDiscount | undefined) => void;
   canSend: boolean;
   sending?: boolean;
   match: { name?: string; past: PastOrder[] } | null;
@@ -40,11 +44,29 @@ export function Checkout(props: CheckoutProps) {
   const hasDiscount = discountTotal > 0;
   const hasCustomDeliveryFee = state.deliveryFee > 0 && !DELIVERY_FEES.includes(state.deliveryFee);
 
+  const md = props.manualDiscount;
+  const [discMode, setDiscMode] = useState<'percent' | 'amount'>(md?.kind ?? 'percent');
+  const [discOpen, setDiscOpen] = useState(!!md); // collapsed by default; open when editing an existing discount
+  const hasCustomPct = md?.kind === 'percent' && !DISCOUNT_PCTS.includes(md.value);
+  const setPct = (v: string) => {
+    const n = Math.min(100, Math.max(0, Math.floor(Number(v))));
+    props.onSetDiscount(Number.isFinite(n) && n > 0 ? { kind: 'percent', value: n } : undefined);
+  };
+  const setAmt = (v: string) => {
+    const n = Math.max(0, Math.round(Number(v) * 100));
+    props.onSetDiscount(Number.isFinite(n) && n > 0 ? { kind: 'amount', value: n } : undefined);
+  };
+
   return (
     <section className="checkout" aria-label="פרטי הזמנה">
       <header className="checkout__top">
-        <button className="checkout__back" onClick={props.onBack}>→ חזרה להזמנה</button>
-        <span className="checkout__num">הזמנה #{String(orderNumber).padStart(2, '0')}</span>
+        <button className="checkout__back" onClick={props.onBack} aria-label="חזרה להזמנה">→</button>
+        <span className="checkout__num">סיום הזמנה #{String(orderNumber).padStart(2, '0')}</span>
+        <span className="checkout__spacer" />
+        <span className="checkout__pay">
+          <span className="checkout__pay-label">לתשלום</span>
+          <span className="checkout__pay-amount">{shekels(total)}</span>
+        </span>
       </header>
 
       <div className="checkout__cols">
@@ -146,19 +168,97 @@ export function Checkout(props: CheckoutProps) {
           </ul>
 
           <footer className="checkout__foot">
+            <div className="total total--sub">
+              <span>ביניים</span>
+              <span>{shekels(subtotal)}</span>
+            </div>
             {hasDiscount && (
               <div className="total total--saving">
                 <span>חיסכון במבצעים</span>
                 <span className="total__saving">−{shekels(discountTotal)}</span>
               </div>
             )}
-            <div className="total">
+            <div className="total total--grand">
               <span>סה״כ</span>
-              <span className="total__wrap">
-                {hasDiscount && <span className="total__was">{shekels(subtotal)}</span>}
-                <span className="total__amount" data-testid="ticket-total">{shekels(total)}</span>
-              </span>
+              <span className="total__amount" data-testid="ticket-total">{shekels(total)}</span>
             </div>
+
+            {!discOpen ? (
+              <button className={`disc-cta ${md ? 'is-set' : ''}`} onClick={() => setDiscOpen(true)}>
+                {md ? (
+                  <>
+                    <span className="disc-cta__tag">הנחה</span>
+                    <strong className="disc-cta__val">{md.kind === 'percent' ? `${md.value}%` : shekels(md.value)}</strong>
+                    <span className="disc-cta__edit">שינוי</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="disc-cta__plus">+</span> הוסף הנחה
+                  </>
+                )}
+              </button>
+            ) : (
+            <div className="deliv disc-card">
+              <div className="deliv__head">
+                <span className="deliv__heading">
+                  <strong className="deliv__label">הנחה</strong>
+                  <span className="deliv__hint">אחוז או סכום קבוע</span>
+                </span>
+                <div className="disc__modes" role="group" aria-label="סוג הנחה">
+                  <button className={discMode === 'percent' ? 'is-active' : ''} onClick={() => setDiscMode('percent')} aria-label="אחוז">%</button>
+                  <button className={discMode === 'amount' ? 'is-active' : ''} onClick={() => setDiscMode('amount')} aria-label="סכום">₪</button>
+                  <button className="disc__none" onClick={() => { props.onSetDiscount(undefined); setDiscOpen(false); }}>ללא</button>
+                </div>
+                <button className="disc__collapse" onClick={() => setDiscOpen(false)} aria-label="סגור">▾</button>
+              </div>
+              <div className="deliv__controls">
+                {discMode === 'percent' ? (
+                  <>
+                    <div className="deliv__pills disc__pills">
+                      {DISCOUNT_PCTS.map((pct) => (
+                        <button
+                          key={pct}
+                          className={`deliv__pill ${md?.kind === 'percent' && md.value === pct ? 'is-active' : ''}`}
+                          aria-pressed={md?.kind === 'percent' && md.value === pct}
+                          onClick={() => props.onSetDiscount({ kind: 'percent', value: pct })}
+                        >
+                          {pct}%
+                        </button>
+                      ))}
+                    </div>
+                    <label className={`deliv__custom ${hasCustomPct ? 'is-active' : ''}`}>
+                      <span className="deliv__custom-label">אחוז אחר</span>
+                      <span className="deliv__input">
+                        <input
+                          inputMode="numeric"
+                          placeholder="0"
+                          aria-label="אחוז הנחה אחר"
+                          value={hasCustomPct ? String(md.value) : ''}
+                          onChange={(e) => setPct(e.target.value)}
+                        />
+                        <span className="deliv__shekel" aria-hidden="true">%</span>
+                      </span>
+                    </label>
+                  </>
+                ) : (
+                  <label className={`deliv__custom ${md?.kind === 'amount' ? 'is-active' : ''}`}>
+                    <span className="deliv__custom-label">סכום הנחה</span>
+                    <span className="deliv__input">
+                      <input
+                        inputMode="numeric"
+                        placeholder="0"
+                        aria-label="סכום הנחה"
+                        value={md?.kind === 'amount' ? String(md.value / 100) : ''}
+                        onChange={(e) => setAmt(e.target.value)}
+                      />
+                      <span className="deliv__shekel" aria-hidden="true">₪</span>
+                    </span>
+                  </label>
+                )}
+              </div>
+            </div>
+            )}
+
             {state.type === 'delivery' && (
               <div className="deliv">
                 <div className="deliv__head">

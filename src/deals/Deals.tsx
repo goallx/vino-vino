@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Bundle, Product, Topping } from '../types';
-import { categories, products, productsById } from '../lib/menuStore';
+import { categories, products, productsById, toppings } from '../lib/menuStore';
 import { shekels } from '../lib/money';
 import { Wordmark } from '../components/Wordmark';
 import { bundleGross, bundleSaving, loadBundles, newBundleId, removeBundle, saveBundle, subscribeBundles } from '../lib/bundles';
@@ -61,8 +61,9 @@ export function Deals() {
           ) : (
             <button className="dtop__new" onClick={() => setEditingTopping(blankTopping())}>+ תוספת חדשה</button>
           )}
-          <a href="/">קבלת הזמנות ←</a>
-          <a href="/reports">דוח יומי ←</a>
+          <a href="/">← הזמנה</a>
+          <a href="/kitchen">מטבח</a>
+          <a href="/orders">הזמנות</a>
         </nav>
       </header>
 
@@ -87,7 +88,7 @@ export function Deals() {
                   <span className="coupon__name">{b.name || 'ללא שם'}</span>
                   <span className="coupon__items">{items || 'ללא פריטים'}</span>
                   {(b.freeToppings ?? 0) > 0 && (
-                    <span className="coupon__perk">🍕 {b.freeToppings} תוספות חינם</span>
+                    <span className="coupon__perk">🍕 {b.freeToppings} תוספות חינם לכל פיצה</span>
                   )}
                   <span className="coupon__foot">
                     {saving > 0 && <span className="coupon__was">{shekels(bundleGross(b))}</span>}
@@ -161,6 +162,17 @@ function Editor({ initial, onCancel, onSave }: EditorProps) {
   function setFreeToppings(text: string) {
     const n = Math.max(0, Math.floor(Number(text)));
     setDraft((d) => ({ ...d, freeToppings: Number.isFinite(n) ? n : 0 }));
+  }
+
+  // Toggle one topping in/out of the free-perk whitelist. Everything is included
+  // by default (freeToppingIds absent), so the owner only ever *excludes* the
+  // premium ones. Back to all-included ⇒ store undefined to keep rows clean.
+  function toggleFreeTopping(id: string) {
+    setDraft((d) => {
+      const included = d.freeToppingIds ?? toppings.map((t) => t.id);
+      const next = included.includes(id) ? included.filter((x) => x !== id) : [...included, id];
+      return { ...d, freeToppingIds: next.length === toppings.length ? undefined : next };
+    });
   }
 
   return (
@@ -248,7 +260,7 @@ function Editor({ initial, onCancel, onSave }: EditorProps) {
           </label>
 
           <label className="dfield">
-            <span>תוספות חינם (הטבה — מס׳ תוספות שהמבצע נותן בחינם על הפיצות)</span>
+            <span>תוספות חינם לכל פיצה (הטבה — מס׳ תוספות חינם שהמבצע נותן על כל פיצה בנפרד)</span>
             <input
               inputMode="numeric"
               placeholder="0"
@@ -257,6 +269,29 @@ function Editor({ initial, onCancel, onSave }: EditorProps) {
               aria-label="תוספות חינם"
             />
           </label>
+
+          {(draft.freeToppings ?? 0) > 0 && (
+            <div className="dfield dfield--full">
+              <span>אילו תוספות ניתנות חינם (כולן כלולות — בטלו סימון לתוספות פרימיום כמו עוף/אווז)</span>
+              <div className="freetop" role="group" aria-label="אילו תוספות ניתנות חינם">
+                {toppings.map((t) => {
+                  const included = !draft.freeToppingIds || draft.freeToppingIds.includes(t.id);
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      className={`toprow ${included ? 'is-on' : ''}`}
+                      aria-pressed={included}
+                      onClick={() => toggleFreeTopping(t.id)}
+                    >
+                      <span className="toprow__name">{t.name}</span>
+                      <span className="toprow__check">{included ? '✓' : ''}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div className={`dsaving ${saving > 0 ? '' : 'dsaving--none'}`}>
             <span>מחיר רגיל</span>

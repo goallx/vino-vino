@@ -79,6 +79,12 @@ export interface Customer {
   address?: string;
 }
 
+/** An ad-hoc discount the owner grants on an order (a % or a fixed ₪ amount). */
+export interface ManualDiscount {
+  kind: 'percent' | 'amount';
+  value: number; // percent 0–100, or a fixed amount in agorot
+}
+
 // ---- deals / bundles ----
 
 export interface BundleItem {
@@ -98,6 +104,7 @@ export interface AppliedCombo {
   label: string; // snapshot of the deal name for the ticket
   price: Money; // the fixed deal price its member lines net to
   freeToppings?: number; // perk: N added-topping portions waived across the combo's pizzas
+  freeToppingIds?: string[]; // which toppings the perk may waive; absent = all eligible
 }
 
 /** A fixed-price combo the owner builds in /deals (e.g. 2 family pizzas for ₪160). */
@@ -113,6 +120,13 @@ export interface Bundle {
    * Deals carrying a perk are manual-add only (can't be inferred from a cart).
    */
   freeToppings?: number;
+  /**
+   * Which toppings the free-topping perk may waive (e.g. the vegetables, not
+   * premium meats like chicken/goose). Absent = every topping is eligible; the
+   * owner unchecks the ones that must always be charged. Only meaningful when
+   * `freeToppings > 0`.
+   */
+  freeToppingIds?: string[];
 }
 
 /** A bundle once applied to an order — carries the saving as an order-level discount. */

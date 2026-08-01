@@ -5,9 +5,6 @@ import { bundleSaving, bundlesVersion, listActiveBundles, subscribeBundles } fro
 import { shekels } from '../lib/money';
 import { DishMedia } from './DishMedia';
 
-// A pseudo-category id for the deals tab (not a real menu category).
-const DEALS_CAT = '__deals__';
-
 interface MenuProps {
   onAddProduct: (product: Product, variant?: Variant) => void;
   onOpenBuilder: (product: Product) => void;
@@ -25,13 +22,12 @@ export const Menu = memo(function Menu({ onAddProduct, onOpenBuilder, onAddBundl
   const bundleVersion = useSyncExternalStore(subscribeBundles, bundlesVersion, bundlesVersion);
   const bundles = useMemo(() => listActiveBundles(), [bundleVersion]);
   const activeCat =
-    pickedCat && (pickedCat === DEALS_CAT || categories.some((c) => c.id === pickedCat))
+    pickedCat && categories.some((c) => c.id === pickedCat)
       ? pickedCat
       : (categories[0]?.id ?? '');
-  const showDeals = activeCat === DEALS_CAT;
   const visible = useMemo(
-    () => (showDeals ? [] : activeProducts().filter((p) => p.categoryId === activeCat)),
-    [activeCat, showDeals, version],
+    () => activeProducts().filter((p) => p.categoryId === activeCat),
+    [activeCat, version],
   );
 
   // Whole card → builder (pizzas / salads) / popover (sized) / add (simple).
@@ -61,38 +57,36 @@ export const Menu = memo(function Menu({ onAddProduct, onOpenBuilder, onAddBundl
             </button>
           ))}
         </div>
-        {bundles.length > 0 && (
-          <button
-            className={`cat cat--deals ${showDeals ? 'is-active' : ''}`}
-            onClick={() => setActiveCat(DEALS_CAT)}
-          >
-            🏷️ מבצעים
-          </button>
-        )}
       </nav>
 
-      {showDeals ? (
-        <div className="grid grid--deals" key="deals">
-          {bundles.map((b) => {
-            const saving = bundleSaving(b);
-            const items = b.items
-              .map((it) => `${it.qty}× ${productsById[it.productId]?.name ?? '—'}`)
-              .join(' + ');
-            return (
-              <button key={b.id} className="dealcard" onClick={() => onAddBundle(b)}>
-                <span className="dealcard__badge">מבצע</span>
-                <span className="dealcard__name">{b.name}</span>
-                {items && <span className="dealcard__items">{items}</span>}
-                <span className="dealcard__foot">
-                  {saving > 0 && <span className="dealcard__was">{shekels(b.price + saving)}</span>}
-                  <span className="dealcard__price">{shekels(b.price)}</span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      ) : (
-      <div className="grid" key={activeCat}>
+      <div className="menuscroll" key={activeCat}>
+        {bundles.length > 0 && (
+          <>
+            <div className="secttl secttl--deal"><span>מבצעים</span><i /></div>
+            <div className="dealrail">
+              {bundles.map((b) => {
+                const saving = bundleSaving(b);
+                const items = b.items
+                  .map((it) => `${it.qty}× ${productsById[it.productId]?.name ?? '—'}`)
+                  .join(' + ');
+                return (
+                  <button key={b.id} className="dealcard" onClick={() => onAddBundle(b)}>
+                    <span className="dealcard__badge">{b.freeToppings ? `${b.freeToppings} תוספות חינם לכל פיצה` : 'מבצע'}</span>
+                    <span className="dealcard__name">{b.name}</span>
+                    {items && <span className="dealcard__items">{items}</span>}
+                    <span className="dealcard__foot">
+                      <span className="dealcard__price">{shekels(b.price)}</span>
+                      {saving > 0 && <span className="dealcard__was">{shekels(b.price + saving)}</span>}
+                      {saving > 0 && <span className="dealcard__save">חוסך {shekels(saving)}</span>}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+        <div className="secttl"><span>{categories.find((c) => c.id === activeCat)?.name ?? ''}</span><i /></div>
+        <div className="grid">
         {visible.map((p) => (
           <div
             key={p.id}
@@ -108,28 +102,33 @@ export const Menu = memo(function Menu({ onAddProduct, onOpenBuilder, onAddBundl
             }}
           >
             <div className="item__media">
-              <DishMedia product={p} size={140} />
+              <DishMedia product={p} size={64} />
               {p.isPizza && <span className="item__tag">בנייה</span>}
-              <button
-                className="item__add"
-                aria-label={`הוסף ${p.name}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  quickAdd(p);
-                }}
-              >
-                +
-              </button>
             </div>
-            <span className="item__name">{p.name}</span>
-            {p.description && <span className="item__desc">{p.description}</span>}
-            <span className="item__price">
-              {p.variants ? `מ־${shekels(p.variants[0].price)}` : shekels(p.basePrice)}
-            </span>
+            <div className="item__body">
+              <span className="item__name">{p.name}</span>
+              {p.description && <span className="item__desc">{p.description}</span>}
+              <div className="item__foot">
+                <span className="item__price">
+                  {p.variants ? shekels(p.variants[0].price) : shekels(p.basePrice)}
+                </span>
+                {p.variants && <span className="item__size">ומעלה</span>}
+                <button
+                  className="item__add"
+                  aria-label={`הוסף ${p.name}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    quickAdd(p);
+                  }}
+                >
+                  +
+                </button>
+              </div>
+            </div>
           </div>
         ))}
+        </div>
       </div>
-      )}
 
       {variantFor && (
         <div className="popover-scrim" onClick={() => setVariantFor(null)}>

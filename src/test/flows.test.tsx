@@ -321,12 +321,12 @@ describe('settings modal', () => {
     // SettingsModal is lazy — await its chunk the first time it opens
     const dialog = await screen.findByRole('dialog', { name: 'הגדרות' });
 
+    // screens (kitchen/orders) live in the header nav now; the hub keeps admin, cash + reports
     expect(within(dialog).getByRole('link', { name: /^תפריט/ })).toHaveAttribute('href', '/menu');
     expect(within(dialog).getByRole('link', { name: /^מבצעים/ })).toHaveAttribute('href', '/deals');
     expect(within(dialog).queryByRole('link', { name: /^מסך מטבח/ })).not.toBeInTheDocument();
-    expect(within(dialog).getByRole('link', { name: /^הזמנות/ })).toHaveAttribute('href', '/orders');
     expect(within(dialog).getByRole('link', { name: /^דוח יומי/ })).toHaveAttribute('href', '/reports');
-    expect(within(dialog).queryByRole('button', { name: /יציאה/ })).not.toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'התנתקות' })).toBeInTheDocument();
 
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'הגדרות' })).not.toBeInTheDocument());

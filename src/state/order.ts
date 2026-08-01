@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useReducer, useSyncExternalStore } from 'react';
-import type { AppliedBundle, AppliedCombo, CartLine, Money, OrderType, PaymentStatus } from '../types';
-import { orderTotals } from '../lib/cart';
+import type { AppliedBundle, AppliedCombo, CartLine, ManualDiscount, Money, OrderType, PaymentStatus } from '../types';
+import { orderTotals, linesSubtotal, discountsTotal, combosDiscount, manualDiscountBundle } from '../lib/cart';
 import { detectBundles, subscribeBundles, bundlesVersion } from '../lib/bundles';
 
 export interface OrderState {
   lines: CartLine[];
   discounts: AppliedBundle[];
   combos: AppliedCombo[]; // fixed-price deals dropped in from the מבצעים pill
+  manualDiscount?: ManualDiscount; // ad-hoc owner discount (% or fixed ₪)
   type: OrderType;
   payment: PaymentStatus;
   paymentMethod: 'cash' | 'card';
@@ -41,6 +42,7 @@ export type Action =
   | { kind: 'removeCombo'; uid: string }
   | { kind: 'setField'; field: keyof OrderState; value: string }
   | { kind: 'setDeliveryFee'; fee: Money }
+  | { kind: 'setDiscount'; discount: ManualDiscount | undefined }
   | { kind: 'loadLines'; lines: CartLine[] }
   | { kind: 'reset' };
 
@@ -104,6 +106,8 @@ export function reducer(state: OrderState, action: Action): OrderState {
     }
     case 'setDeliveryFee':
       return { ...state, deliveryFee: action.fee };
+    case 'setDiscount':
+      return { ...state, manualDiscount: action.discount };
     case 'loadLines':
       return { ...state, lines: action.lines };
     case 'reset':
@@ -143,7 +147,16 @@ export function useOrder() {
   // Deals apply automatically: re-derived from the cart on every change, and
   // recomputed when the owner edits a bundle (bundles load/refresh async).
   const bundleVersion = useSyncExternalStore(subscribeBundles, bundlesVersion, bundlesVersion);
-  const discounts = useMemo(() => detectBundles(raw.lines), [raw.lines, bundleVersion]);
+  // Deals + the owner's ad-hoc discount together form the order's discount list.
+  // The manual discount is computed against the items subtotal net of deals, so
+  // a percentage recalculates automatically as lines change.
+  const discounts = useMemo(() => {
+    const deals = detectBundles(raw.lines);
+    const dealAmount = discountsTotal(deals) + combosDiscount(raw.lines, raw.combos);
+    const base = Math.max(0, linesSubtotal(raw.lines) - dealAmount);
+    const manual = manualDiscountBundle(raw.manualDiscount, base);
+    return manual ? [...deals, manual] : deals;
+  }, [raw.lines, raw.combos, raw.manualDiscount, bundleVersion]);
   const state: OrderState = { ...raw, discounts };
 
   const { subtotal, discount: discountTotal, total } = useMemo(

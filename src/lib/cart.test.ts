@@ -1,6 +1,6 @@
 import { beforeAll, describe, it, expect } from 'vitest';
 import type { CartLine, LinePart, ToppingSel } from '../types';
-import { computeUnitPrice, lineSummary, wholePart, newLineId, lineTotal, linesSubtotal, discountsTotal, orderTotals, sizeOfProduct, toppingPrice, combosDiscount, pricedAddedToppings, partToppingCharges } from './cart';
+import { computeUnitPrice, lineSummary, wholePart, newLineId, lineTotal, linesSubtotal, discountsTotal, orderTotals, sizeOfProduct, toppingPrice, combosDiscount, pricedAddedToppings, partToppingCharges, manualDiscountAmount, manualDiscountBundle } from './cart';
 import type { AppliedBundle, Product, Topping } from '../types';
 import { productsById } from '../test/fixtures/catalog';
 import { productsById as menuProducts } from './menuStore';
@@ -280,6 +280,31 @@ describe('lineSummary()', () => {
   });
 });
 
+describe('manual owner discount', () => {
+  it('computes a percentage off the base, rounding the final price up to a whole shekel', () => {
+    expect(manualDiscountAmount({ kind: 'percent', value: 10 }, 10000)).toBe(1000); // ₪100 → ₪90, already whole
+    // ₪13 − 10% = ₪11.70 → final rounds up to ₪12, so the discount is ₪1
+    expect(manualDiscountAmount({ kind: 'percent', value: 10 }, 1300)).toBe(100);
+    // ₪65 − 15% = ₪55.25 → final rounds up to ₪56, so the discount is ₪9
+    expect(manualDiscountAmount({ kind: 'percent', value: 15 }, 6500)).toBe(900);
+  });
+  it('caps a fixed amount at the base and rounds', () => {
+    expect(manualDiscountAmount({ kind: 'amount', value: 2000 }, 10000)).toBe(2000);
+    expect(manualDiscountAmount({ kind: 'amount', value: 99999 }, 5000)).toBe(5000);
+  });
+  it('is zero for no/empty discount or empty order', () => {
+    expect(manualDiscountAmount(undefined, 10000)).toBe(0);
+    expect(manualDiscountAmount({ kind: 'percent', value: 0 }, 10000)).toBe(0);
+    expect(manualDiscountAmount({ kind: 'percent', value: 10 }, 0)).toBe(0);
+  });
+  it('produces a labelled bundle that folds into order totals', () => {
+    const b = manualDiscountBundle({ kind: 'percent', value: 20 }, 10000);
+    expect(b).toEqual({ uid: 'manual', bundleId: 'manual', label: 'הנחה 20%', amount: 2000 });
+    // ₪100 order, 20% off → ₪80
+    expect(orderTotals([line({ productId: 'd_coke', qty: 10 })], [b!]).total).toBe(8000);
+  });
+});
+
 describe('order totals', () => {
   const coke = (qty: number) => line({ productId: 'd_coke', qty }); // ₪10 each
   const disc = (amount: number): AppliedBundle => ({ uid: `u${amount}`, bundleId: 'b', label: 'מבצע', amount });
@@ -371,10 +396,39 @@ describe('free-topping perk', () => {
     expect(orderTotals([pizza()], [], 0, [combo]).total).toBe(10000);
   });
 
-  it('pools the free toppings across the combo’s pizzas, not per pizza', () => {
-    // two pizzas → charged pool [700,700,700,700,500,500]; perk of 2 = ₪14 total
+  it('applies the free toppings per pizza, not as a shared pool', () => {
+    // two pizzas, each charged [500,700,700]; perk of 2 waives the two ₪7 on
+    // EACH pizza → 1400 per pizza, 2800 total (a shared pool would give 1400).
     const combo = { uid: 'ft', bundleId: 'b', label: 'תוספות חינם', price: 19000, freeToppings: 2 };
-    expect(combosDiscount([pizza(), pizza()], [combo])).toBe(1400);
+    expect(combosDiscount([pizza(), pizza()], [combo])).toBe(2800);
+  });
+
+  it('a pizza cannot spend another pizza’s free slots', () => {
+    // one pizza with no added toppings, one with three; perk of 2 per pizza. The
+    // bare pizza waives nothing (its 2 slots don't transfer), the loaded one
+    // waives its two ₪7 = 1400. A shared pool of 2 would also land on the ₪7s,
+    // but the point is the empty pizza's allowance is NOT reused.
+    const bare = line({ productId: 'p_vino', bundleUid: 'ft', parts: [{ target: 'whole', baseProductId: 'p_vino', baseName: 'וינו וינו', toppings: [] }] });
+    const combo = { uid: 'ft', bundleId: 'b', label: 'תוספות חינם', price: 19000, freeToppings: 2 };
+    expect(combosDiscount([bare, pizza()], [combo])).toBe(1400);
+  });
+
+  it('only waives toppings on the deal’s eligible list (premium ones stay charged)', () => {
+    // charged pool [500,700,700] = mushroom, bulgarit, pepperoni. The deal's perk
+    // covers only mushroom + bulgarit, so pepperoni (₪7) can never come off even
+    // though it's the priciest. Perk of 2 waives 500 + 700 = ₪12, not ₪14.
+    const combo = {
+      uid: 'ft', bundleId: 'b', label: 'תוספות ירקות חינם', price: 9500,
+      freeToppings: 2, freeToppingIds: ['t_mushroom', 't_bulgarit'],
+    };
+    expect(combosDiscount([pizza()], [combo])).toBe(1200);
+    // pays base + the always-charged pepperoni: 9500 + 700 = 10200
+    expect(orderTotals([pizza()], [], 0, [combo]).total).toBe(10200);
+  });
+
+  it('treats an absent eligible list as covering every topping', () => {
+    const combo = { uid: 'ft', bundleId: 'b', label: 'תוספות חינם', price: 9500, freeToppings: 2 };
+    expect(combosDiscount([pizza()], [combo])).toBe(1400); // waives the two ₪7 as before
   });
 
   it('waives nothing when the deal has no perk', () => {

@@ -3,7 +3,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Deals } from './Deals';
 import { ConfirmProvider } from '../components/ConfirmDialog';
-import { productsById } from '../lib/menuStore';
+import { productsById, toppings } from '../lib/menuStore';
 import { seedCatalog } from '../test/fixtures/seed';
 
 /** Deals uses useConfirm(), so render it inside the provider. */
@@ -233,6 +233,31 @@ describe('deal perks', () => {
     expect(saved.price).toBe(12000);
 
     // the deal card advertises the perk
-    expect(screen.getByText('🍕 3 תוספות חינם')).toBeInTheDocument();
+    expect(screen.getByText('🍕 3 תוספות חינם לכל פיצה')).toBeInTheDocument();
+  });
+
+  it('lets you restrict which toppings a deal gives free, defaulting to all', async () => {
+    const user = userEvent.setup();
+    render(<Deals />);
+    await user.click(screen.getByText('+ מבצע חדש'));
+
+    const dialog = screen.getByRole('dialog', { name: 'עריכת מבצע' });
+    await user.type(within(dialog).getByPlaceholderText('לדוגמה: זוג משפחתיות'), 'זוג ירקות');
+    await user.selectOptions(within(dialog).getByRole('combobox'), 'p_vino');
+    await user.type(within(dialog).getAllByPlaceholderText('0')[0], '120');
+    await user.type(within(dialog).getByLabelText('תוספות חינם'), '2');
+
+    // the whitelist appears once the perk is on, everything included; tap chicken
+    // (נתחי עוף) to exclude it — the rest stay in.
+    const free = within(dialog).getByRole('group', { name: 'אילו תוספות ניתנות חינם' });
+    const keep = toppings.map((t) => t.id).filter((id) => id !== 't_chicken');
+    await user.click(within(free).getByRole('button', { name: /נתחי עוף/ }));
+    await user.click(within(dialog).getByText('שמור מבצע'));
+
+    const saved = JSON.parse(localStorage.getItem('vino:bundles')!).find(
+      (b: { name: string }) => b.name === 'זוג ירקות',
+    );
+    expect(saved.freeToppingIds).toEqual(keep);
+    expect(saved.freeToppingIds).not.toContain('t_chicken');
   });
 });

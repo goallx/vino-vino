@@ -29,6 +29,11 @@ export function useAuth(): AuthState {
   return ctx;
 }
 
+/** Like useAuth but returns null outside a provider (e.g. tests) instead of throwing. */
+export function useAuthOptional(): AuthState | null {
+  return useContext(AuthCtx);
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(isSupabaseEnabled);

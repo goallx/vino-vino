@@ -27,7 +27,10 @@ export function Kitchen() {
       <header className="ktop">
         <span className="ktop__brand"><Wordmark /> · מטבח</span>
         <span className="ktop__count">{active.length} הזמנות פעילות</span>
-        <a className="ktop__link" href="/">← קבלת הזמנות</a>
+        <nav className="ktop__nav" aria-label="ניווט">
+          <a className="ktop__link" href="/">← הזמנה</a>
+          <a className="ktop__link" href="/orders">הזמנות</a>
+        </nav>
       </header>
 
       {active.length === 0 ? (
