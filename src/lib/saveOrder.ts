@@ -1,6 +1,6 @@
 import type { OrderState } from '../state/order';
 import { combosAsDiscounts, computeUnitPrice, orderTotals } from './cart';
-import { supabase, isSupabaseEnabled } from './supabase';
+import { supabase, isSupabaseEnabled, isMissingColumn } from './supabase';
 
 export interface SaveResult {
   ok: boolean;
@@ -13,15 +13,6 @@ export interface SaveResult {
  * order_lines + order_line_options + order_line_parts; otherwise it logs the
  * payload locally so the entry flow is fully testable before the DB exists.
  */
-/** A row was rejected because the delivery_fee column isn't in the DB yet. */
-function isMissingDeliveryFeeColumn(error: { code?: string; message?: string } | null): boolean {
-  if (!error) return false;
-  return (
-    error.code === '42703' || // Postgres: undefined_column
-    error.code === 'PGRST204' || // PostgREST: column not found in schema cache
-    (error.message?.includes('delivery_fee') ?? false)
-  );
-}
 
 export async function saveOrder(state: OrderState, orderNumber: number): Promise<SaveResult> {
   // Fold fixed-price combos into the discounts list so the saved total, the
@@ -63,7 +54,7 @@ export async function saveOrder(state: OrderState, orderNumber: number): Promise
   // Older DB without the delivery_fee column yet (migration not applied) — drop
   // the column and retry so sending never breaks. The fee is already folded
   // into `total`, so the money saved stays correct either way.
-  if (isMissingDeliveryFeeColumn(error)) {
+  if (isMissingColumn(error, ['delivery_fee'])) {
     const rest = { ...row } as Partial<typeof row>;
     delete rest.delivery_fee;
     payload = rest;

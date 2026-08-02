@@ -4,6 +4,7 @@ import { render, screen, act, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Kitchen } from './Kitchen';
 import { publishOrder } from '../lib/orderBus';
+import { addTimerPreset } from '../lib/timerPresets';
 import type { CartLine, KitchenOrder } from '../types';
 
 const splitPizza: CartLine = {
@@ -44,13 +45,14 @@ describe('kitchen board', () => {
     expect(add).toHaveClass('kingr--add');
   });
 
-  it('moves an order from new → preparing', async () => {
+  it('moves an order from new → preparing (no timer)', async () => {
     const user = userEvent.setup();
     publishOrder(order());
     render(<Kitchen />);
-    await user.click(screen.getByRole('button', { name: 'התחל הכנה' }));
-    expect(screen.getByText('בהכנה')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'התחל בלי טיימר' }));
     expect(screen.getByRole('button', { name: /מוכן/ })).toBeInTheDocument();
+    // started without a timer → offers to add one, no countdown yet
+    expect(screen.getByRole('button', { name: '+ טיימר' })).toBeInTheDocument();
   });
 
   it('clears a card from the board when marked ready', async () => {
@@ -81,5 +83,76 @@ describe('kitchen board', () => {
     render(<Kitchen />);
     expect(screen.getByText('₪79')).toBeInTheDocument();
     expect(screen.getByText('דמי משלוח +₪10')).toBeInTheDocument();
+  });
+});
+
+describe('kitchen prep timers', () => {
+  it('tapping a preset starts prep and shows a countdown', async () => {
+    const user = userEvent.setup();
+    publishOrder(order());
+    const { container } = render(<Kitchen />);
+    await user.click(screen.getByRole('button', { name: '10׳' }));
+    const pill = container.querySelector('.ktimer');
+    expect(pill).toBeTruthy();
+    expect(pill!.textContent).toMatch(/\d+:\d\d/); // e.g. 10:00
+    expect(screen.getByRole('button', { name: /מוכן/ })).toBeInTheDocument();
+  });
+
+  it('shows the defaults 5/10/15 plus any saved custom time', async () => {
+    const user = userEvent.setup();
+    publishOrder(order());
+    render(<Kitchen />);
+    ['5׳', '10׳', '15׳'].forEach((m) => expect(screen.getByRole('button', { name: m })).toBeInTheDocument());
+    // add a custom 8-minute time → it starts prep AND is saved for reuse
+    await user.click(screen.getByRole('button', { name: 'זמן מותאם' }));
+    await user.type(screen.getByLabelText('זמן מותאם בדקות'), '8');
+    await user.click(screen.getByRole('button', { name: 'התחל' }));
+    expect(JSON.parse(localStorage.getItem('vino:timer-presets')!)).toContain(8);
+  });
+
+  it('renders “נגמר הזמן” and flags the card once a timer elapses', () => {
+    // prep started 12 min ago with a 10-min timer → 2 min overdue
+    publishOrder(order({ status: 'preparing', prepStartedAt: Date.now() - 12 * 60000, timerSeconds: 600 }));
+    const { container } = render(<Kitchen />);
+    const pill = container.querySelector('.ktimer--over');
+    expect(pill).toBeTruthy();
+    expect(pill!.textContent).toContain('נגמר הזמן');
+    expect(container.querySelector('.kcard--over')).toBeTruthy();
+  });
+
+  it('rejects an invalid custom time without starting a timer, keeping the field open', async () => {
+    const user = userEvent.setup();
+    publishOrder(order());
+    const { container } = render(<Kitchen />);
+    await user.click(screen.getByRole('button', { name: 'זמן מותאם' }));
+    const input = screen.getByLabelText('זמן מותאם בדקות');
+    await user.type(input, '0');
+    await user.click(screen.getByRole('button', { name: 'התחל' }));
+    // no timer started, the entry stays open and flagged, order still 'new'
+    expect(container.querySelector('.ktimer')).toBeFalsy();
+    expect(screen.getByLabelText('זמן מותאם בדקות')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByRole('button', { name: 'התחל בלי טיימר' })).toBeInTheDocument();
+  });
+
+  it('lets you remove a saved custom preset (but not a default)', async () => {
+    const user = userEvent.setup();
+    addTimerPreset(8); // owner had saved 8׳ earlier
+    publishOrder(order());
+    render(<Kitchen />);
+    expect(screen.getByRole('button', { name: '8׳' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'מחק 10 דקות' })).not.toBeInTheDocument(); // default has no ✕
+    await user.click(screen.getByRole('button', { name: 'מחק 8 דקות' }));
+    expect(screen.queryByRole('button', { name: '8׳' })).not.toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem('vino:timer-presets')!)).not.toContain(8);
+  });
+
+  it('clearing a running timer removes the countdown and offers to re-add one', async () => {
+    const user = userEvent.setup();
+    publishOrder(order({ status: 'preparing', prepStartedAt: Date.now(), timerSeconds: 600 }));
+    const { container } = render(<Kitchen />);
+    expect(container.querySelector('.ktimer')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'בטל טיימר' }));
+    expect(container.querySelector('.ktimer')).toBeFalsy();
+    expect(screen.getByRole('button', { name: '+ טיימר' })).toBeInTheDocument();
   });
 });

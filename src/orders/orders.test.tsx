@@ -44,6 +44,29 @@ describe('orders list + cancel', () => {
     expect(screen.getByText('בוטל')).toBeInTheDocument();
   });
 
+  it('shows the client details (name, tap-to-call phone, address) in the expanded card', async () => {
+    const user = userEvent.setup();
+    publishOrder(ord({ id: 'a', number: 7, customerName: 'דנה', phone: '0501234567', address: 'הרצל 5' }));
+    render(<Orders />);
+
+    const row = screen.getByText('#07').closest('.orow') as HTMLElement;
+    await user.click(within(row).getByRole('button', { name: 'הצג פרטים' }));
+
+    expect(within(row).getByText('👤 דנה')).toBeInTheDocument();
+    const tel = within(row).getByRole('link', { name: '📞 0501234567' });
+    expect(tel).toHaveAttribute('href', 'tel:0501234567');
+    expect(within(row).getByText('📍 הרצל 5')).toBeInTheDocument();
+  });
+
+  it('marks a pickup order as self-collect instead of an address', async () => {
+    const user = userEvent.setup();
+    publishOrder(ord({ id: 'a', number: 7, type: 'pickup', customerName: 'יוסי', address: undefined }));
+    render(<Orders />);
+    const row = screen.getByText('#07').closest('.orow') as HTMLElement;
+    await user.click(within(row).getByRole('button', { name: 'הצג פרטים' }));
+    expect(within(row).getByText('🏠 איסוף עצמי')).toBeInTheDocument();
+  });
+
   it('backing out of the confirm keeps the order', async () => {
     const user = userEvent.setup();
     publishOrder(ord({ id: 'a', number: 7 }));

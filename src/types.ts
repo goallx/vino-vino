@@ -156,6 +156,8 @@ export interface KitchenOrder {
   payment: PaymentStatus;
   createdAt: number; // epoch ms
   status: KitchenStatus;
+  prepStartedAt?: number; // epoch ms prep began (set when status → 'preparing')
+  timerSeconds?: number; // chosen prep-countdown length; absent = started with no timer
   customerName?: string;
   phone?: string;
   address?: string;

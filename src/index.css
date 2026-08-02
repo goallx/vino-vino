@@ -848,6 +848,61 @@ input, select { font-family: inherit; }
 .kbtn--ready:hover { background: var(--basil-deep); }
 .kbtn--ready:active { transform: translateY(4px); box-shadow: none; }
 
+/* ---- prep timer ---- */
+.kcard__foot { flex-wrap: wrap; }
+/* new-order picker: "זמן הכנה" + preset chips + start-without-timer */
+.ktimerset { flex: 1 1 100%; display: flex; flex-direction: column; gap: 9px; }
+.ktimerset__label { font-size: 14px; font-weight: 700; color: var(--ink-soft); }
+.ktimerset__chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ktimerchip {
+  min-width: 56px; height: 48px; padding: 0 14px; border-radius: 12px;
+  font-family: var(--display); font-weight: 800; font-size: 18px;
+  color: var(--amber); background: #fff; border: 2px solid var(--amber);
+  transition: transform .06s var(--ease-out), background .12s ease;
+}
+.ktimerchip:hover { background: #fff7ea; }
+.ktimerchip:active { transform: translateY(1px); }
+.ktimerchip--add { color: var(--ink-soft); border-color: var(--line-strong); font-size: 24px; }
+.ktimerchip--go { color: #fff; background: var(--basil); border-color: var(--basil); }
+.ktimerchip__custom { display: inline-flex; align-items: center; gap: 6px; }
+.ktimerchip__input {
+  width: 62px; height: 48px; text-align: center; border-radius: 12px;
+  border: 2px solid var(--amber); font-family: var(--display); font-weight: 800; font-size: 18px;
+}
+.ktimerchip__input.is-invalid { border-color: var(--vino); background: #fff2f0; }
+/* a saved (non-default) chip carries a small ✕ to remove it */
+.ktimerchip__wrap { position: relative; display: inline-flex; }
+.ktimerchip__rm {
+  position: absolute; top: -6px; inset-inline-start: -6px;
+  width: 20px; height: 20px; border-radius: 999px; font-size: 11px; font-weight: 800;
+  color: #fff; background: var(--ink-soft); border: 2px solid var(--paper);
+  display: grid; place-items: center; line-height: 1;
+}
+.kbtn--skip {
+  flex: none; height: 44px; font-size: 15px; font-weight: 700; color: var(--ink-soft);
+  background: var(--paper-2); border: 1px solid var(--line-strong); box-shadow: none;
+}
+.kbtn--skip:active { transform: translateY(1px); }
+/* running countdown pill */
+.ktimer {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--display); font-weight: 800; font-size: 22px; color: var(--amber);
+  background: #fff7ea; border: 2px solid var(--amber); border-radius: 12px; padding: 6px 14px;
+}
+.ktimer--warn { color: var(--vino); border-color: var(--vino); background: #fff2f0; }
+.ktimer--over { color: #fff; background: var(--vino); border-color: var(--vino-deep); animation: timer-pulse 1s ease-in-out infinite; }
+.ktimer__clear {
+  width: 26px; height: 26px; border-radius: 999px; font-size: 13px; font-weight: 800;
+  color: inherit; background: rgba(0, 0, 0, .08);
+}
+.ktimer--over .ktimer__clear { background: rgba(255, 255, 255, .25); }
+.ktimer__add {
+  height: 48px; padding: 0 14px; border-radius: 12px; font-size: 15px; font-weight: 700;
+  color: var(--amber); background: #fff; border: 2px dashed var(--amber);
+}
+.kcard--over { box-shadow: 0 0 0 3px var(--vino), 0 3px 12px rgba(108, 20, 15, .18); }
+@keyframes timer-pulse { 50% { opacity: .7; } }
+
 /* ============================================================
    DAILY REPORT — warm dashboard, big serif numbers
    ============================================================ */
@@ -1154,6 +1209,14 @@ input, select { font-family: inherit; }
 .orow__qty { font-weight: 800; color: var(--vino); }
 .orow__sub { color: var(--ink-soft); font-size: 13px; }
 .orow__aside { width: 230px; flex: none; display: flex; flex-direction: column; gap: 10px; }
+.orow__cust {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 10px 12px; border-radius: 12px;
+  background: #fff; border: 1px solid var(--line);
+}
+.orow__custrow { display: flex; align-items: center; gap: 7px; font-size: 13.5px; color: var(--ink); }
+.orow__custrow--tel { font-weight: 700; color: var(--vino); text-decoration: none; }
+.orow__custrow--muted { color: var(--ink-soft); }
 .orow__addr { font-size: 12.5px; color: var(--ink-soft); }
 .orow__cancel {
   height: 46px; border-radius: 12px; font-size: 14px; font-weight: 500; color: var(--remove);

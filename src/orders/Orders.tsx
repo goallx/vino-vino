@@ -105,7 +105,15 @@ function OrderRow({ order, onAdvance, onCancel }: {
             })}
           </ul>
           <div className="orow__aside">
-            {order.type === 'delivery' && order.address && <span className="orow__addr">{order.address}</span>}
+            <div className="orow__cust">
+              <span className="orow__custrow">👤 {order.customerName || 'ללא שם'}</span>
+              {order.phone && (
+                <a className="orow__custrow orow__custrow--tel" href={`tel:${order.phone}`}>📞 {order.phone}</a>
+              )}
+              {order.type === 'delivery'
+                ? order.address && <span className="orow__custrow">📍 {order.address}</span>
+                : <span className="orow__custrow orow__custrow--muted">🏠 איסוף עצמי</span>}
+            </div>
             {!cancelled && (
               confirming ? (
                 <div className="orow__confirm">

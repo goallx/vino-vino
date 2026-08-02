@@ -1,12 +1,22 @@
+import { useState } from 'react';
 import type { KitchenOrder } from '../types';
 import { shekels } from '../lib/money';
+import { armAudio } from '../lib/beep';
+import { DEFAULT_PRESETS } from '../lib/timerPresets';
+import { timerRemainingMs, fmtCountdown } from './timerUtil';
 import { KitchenLine } from './KitchenLine';
+
+const MAX_TIMER_MIN = 180; // a prep timer over 3h is a fat-finger, not a real value
 
 interface KitchenCardProps {
   order: KitchenOrder;
   now: number;
-  onStart: (id: string) => void;
+  presets: number[]; // owner's durations in minutes (defaults + saved)
+  onStart: (id: string, timerSeconds?: number) => void;
   onReady: (id: string) => void;
+  onSetTimer: (id: string, timerSeconds: number | null) => void;
+  onSavePreset: (minutes: number) => void;
+  onRemovePreset: (minutes: number) => void;
 }
 
 function ageTier(minutes: number): 'fresh' | 'warn' | 'late' {
@@ -19,7 +29,7 @@ function ageTier(minutes: number): 'fresh' | 'warn' | 'late' {
 // and refetch, so layout/exit animations here caused reflow jank and a
 // flicker on cheap tablets. Cards appear/leave instantly; a cheap opacity
 // fade-in (CSS, GPU-composited) softens new arrivals.
-export function KitchenCard({ order, now, onStart, onReady }: KitchenCardProps) {
+export function KitchenCard({ order, now, presets, onStart, onReady, onSetTimer, onSavePreset, onRemovePreset }: KitchenCardProps) {
   const minutes = Math.floor((now - order.createdAt) / 60000);
   const tier = ageTier(minutes);
   const timeLabel = minutes < 1 ? 'עכשיו' : `${minutes} ד׳`;
@@ -31,9 +41,12 @@ export function KitchenCard({ order, now, onStart, onReady }: KitchenCardProps) 
   const snapshotDiscount = order.discounts?.reduce((sum, discount) => sum + discount.amount, 0) ?? 0;
   const total = order.total ?? Math.max(0, snapshotSubtotal - snapshotDiscount) + deliveryFee;
 
+  const remaining = timerRemainingMs(order, now); // null = no running timer
+  const expired = remaining != null && remaining <= 0;
+
   return (
     <article
-      className={`kcard kcard--${tier} ${order.status === 'preparing' ? 'kcard--prep' : ''}`}
+      className={`kcard kcard--${tier} ${order.status === 'preparing' ? 'kcard--prep' : ''} ${expired ? 'kcard--over' : ''}`}
       data-testid={`kcard-${order.id}`}
     >
       <div className="kcard__strip" aria-hidden="true" />
@@ -73,12 +86,23 @@ export function KitchenCard({ order, now, onStart, onReady }: KitchenCardProps) 
 
       <footer className="kcard__foot">
         {order.status === 'new' ? (
-          <button className="kbtn kbtn--start" onClick={() => onStart(order.id)}>
-            התחל הכנה
-          </button>
+          <TimerPicker
+            presets={presets}
+            onPick={(seconds) => { armAudio(); onStart(order.id, seconds); }}
+            onSavePreset={onSavePreset}
+            onRemovePreset={onRemovePreset}
+            onSkip={() => onStart(order.id)}
+          />
         ) : (
           <>
-            <span className="kbadge">בהכנה</span>
+            {remaining != null ? (
+              <span className={`ktimer ${expired ? 'ktimer--over' : remaining <= 60000 ? 'ktimer--warn' : ''}`}>
+                {expired ? '⏰ נגמר הזמן' : `⏱ ${fmtCountdown(remaining)}`}
+                <button className="ktimer__clear" onClick={() => onSetTimer(order.id, null)} aria-label="בטל טיימר">✕</button>
+              </span>
+            ) : (
+              <AddTimer presets={presets} onPick={(seconds) => { armAudio(); onSetTimer(order.id, seconds); }} onSavePreset={onSavePreset} onRemovePreset={onRemovePreset} />
+            )}
             <button className="kbtn kbtn--ready" onClick={() => onReady(order.id)}>
               מוכן ✓
             </button>
@@ -86,5 +110,90 @@ export function KitchenCard({ order, now, onStart, onReady }: KitchenCardProps) 
         )}
       </footer>
     </article>
+  );
+}
+
+interface ChipProps {
+  presets: number[];
+  onPick: (seconds: number) => void;
+  onSavePreset: (minutes: number) => void;
+  onRemovePreset: (minutes: number) => void;
+}
+
+/** Preset chips + a custom entry; on a new order each chip starts prep with its timer. */
+function TimerPicker({ onSkip, ...chip }: ChipProps & { onSkip: () => void }) {
+  return (
+    <div className="ktimerset">
+      <span className="ktimerset__label">⏱ זמן הכנה:</span>
+      <PresetChips {...chip} />
+      <button className="kbtn kbtn--skip" onClick={onSkip}>התחל בלי טיימר</button>
+    </div>
+  );
+}
+
+/** Add a timer to an order already in prep that was started without one. */
+function AddTimer(chip: ChipProps) {
+  const [open, setOpen] = useState(false);
+  if (!open) {
+    return <button className="ktimer__add" onClick={() => setOpen(true)}>+ טיימר</button>;
+  }
+  return <PresetChips {...chip} />;
+}
+
+/** The shared chip row: a chip per preset minute + a "+" that saves a custom time. */
+function PresetChips({ presets, onPick, onSavePreset, onRemovePreset }: ChipProps) {
+  const [customOpen, setCustomOpen] = useState(false);
+  const [text, setText] = useState('');
+  const [invalid, setInvalid] = useState(false);
+
+  function confirmCustom() {
+    const m = Math.round(Number(text.trim().replace(',', '.'))); // tolerate "8," / "8.5"
+    if (!Number.isFinite(m) || m <= 0) {
+      setInvalid(true); // keep the field open so a typo (0, blank, "abc") is visible
+      return;
+    }
+    const mins = Math.min(m, MAX_TIMER_MIN);
+    onSavePreset(mins); // remember it for next time
+    onPick(mins * 60);
+    setCustomOpen(false);
+    setText('');
+    setInvalid(false);
+  }
+
+  return (
+    <div className="ktimerset__chips">
+      {presets.map((m) => (
+        <span key={m} className="ktimerchip__wrap">
+          <button className="ktimerchip" onClick={() => onPick(m * 60)}>{m}׳</button>
+          {!DEFAULT_PRESETS.includes(m) && (
+            <button
+              className="ktimerchip__rm"
+              onClick={(e) => { e.stopPropagation(); onRemovePreset(m); }}
+              aria-label={`מחק ${m} דקות`}
+            >
+              ✕
+            </button>
+          )}
+        </span>
+      ))}
+      {customOpen ? (
+        <span className="ktimerchip__custom">
+          <input
+            className={`ktimerchip__input ${invalid ? 'is-invalid' : ''}`}
+            inputMode="numeric"
+            placeholder="דק׳"
+            value={text}
+            autoFocus
+            aria-label="זמן מותאם בדקות"
+            aria-invalid={invalid}
+            onChange={(e) => { setText(e.target.value); setInvalid(false); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') confirmCustom(); }}
+          />
+          <button className="ktimerchip ktimerchip--go" onClick={confirmCustom} aria-label="התחל">✓</button>
+        </span>
+      ) : (
+        <button className="ktimerchip ktimerchip--add" onClick={() => setCustomOpen(true)} aria-label="זמן מותאם">+</button>
+      )}
+    </div>
   );
 }

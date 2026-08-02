@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { publishOrder, loadOrders, setStatus, clearOrders, subscribe } from './orderBus';
+import { publishOrder, loadOrders, setStatus, startPrep, setTimer, clearOrders, subscribe } from './orderBus';
 import type { KitchenOrder } from '../types';
 
 function mk(over: Partial<KitchenOrder> = {}): KitchenOrder {
@@ -26,6 +26,33 @@ describe('orderBus', () => {
     publishOrder(mk({ id: 'o1' }));
     setStatus('o1', 'preparing');
     expect(loadOrders()[0].status).toBe('preparing');
+  });
+
+  it('startPrep moves to preparing and stamps a countdown', () => {
+    publishOrder(mk({ id: 'o1' }));
+    startPrep('o1', 600);
+    const o = loadOrders()[0];
+    expect(o.status).toBe('preparing');
+    expect(o.timerSeconds).toBe(600);
+    expect(o.prepStartedAt).toBeGreaterThan(0);
+  });
+
+  it('startPrep with no seconds starts prep without a timer', () => {
+    publishOrder(mk({ id: 'o1' }));
+    startPrep('o1');
+    const o = loadOrders()[0];
+    expect(o.status).toBe('preparing');
+    expect(o.timerSeconds).toBeUndefined();
+    expect(o.prepStartedAt).toBeGreaterThan(0);
+  });
+
+  it('setTimer restarts, then clears, the countdown', () => {
+    publishOrder(mk({ id: 'o1', status: 'preparing', prepStartedAt: 1, timerSeconds: 300 }));
+    setTimer('o1', 900);
+    expect(loadOrders()[0].timerSeconds).toBe(900);
+    expect(loadOrders()[0].prepStartedAt).toBeGreaterThan(1); // restarted from now
+    setTimer('o1', null);
+    expect(loadOrders()[0].timerSeconds).toBeUndefined();
   });
 
   it('clears all orders', () => {

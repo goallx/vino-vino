@@ -25,3 +25,21 @@ export function refetchOnAuth(fn: () => void): void {
     if (session && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) fn();
   });
 }
+
+/**
+ * A write was rejected because one of `columns` isn't in the DB yet (its
+ * migration hasn't been applied). Callers drop the column(s) and retry so
+ * saving degrades gracefully — shared by every store that ships a column ahead
+ * of its migration.
+ */
+export function isMissingColumn(
+  error: { code?: string; message?: string } | null,
+  columns: string[],
+): boolean {
+  if (!error) return false;
+  return (
+    error.code === '42703' || // Postgres: undefined_column
+    error.code === 'PGRST204' || // PostgREST: column not found in schema cache
+    columns.some((c) => error.message?.includes(c) ?? false)
+  );
+}

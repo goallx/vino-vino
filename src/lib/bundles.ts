@@ -1,7 +1,7 @@
 import type { AppliedBundle, AppliedCombo, Bundle, CartLine, Money } from '../types';
 import { productsById } from './menuStore';
 import { computeUnitPrice, newLineId, wholePart } from './cart';
-import { supabase, isSupabaseEnabled, refetchOnAuth } from './supabase';
+import { supabase, isSupabaseEnabled, refetchOnAuth, isMissingColumn } from './supabase';
 
 // Owner-managed combo deals.
 //
@@ -96,15 +96,8 @@ function persist(list: Bundle[]) {
   }
 }
 
-/** A row was rejected because a perk column (free_toppings / free_topping_ids) isn't in the DB yet. */
-function isMissingPerkColumn(error: { code?: string; message?: string } | null): boolean {
-  if (!error) return false;
-  return (
-    error.code === '42703' || // Postgres: undefined_column
-    error.code === 'PGRST204' || // PostgREST: column not found in schema cache
-    (error.message?.includes('free_topping') ?? false) // matches free_toppings and free_topping_ids
-  );
-}
+// Perk columns (free_toppings / free_topping_ids) aren't in the DB until the migration is applied.
+const PERK_COLUMNS = ['free_toppings', 'free_topping_ids'];
 
 /** Upsert a bundle by id; returns the full list after the change. */
 export function saveBundle(bundle: Bundle): Bundle[] {
@@ -125,7 +118,7 @@ export function saveBundle(bundle: Bundle): Bundle[] {
       // Older DB without the perk columns yet — drop them and retry so saving
       // never breaks; the perk simply won't persist until the migration is
       // applied. (Mirrors saveOrder's delivery_fee fallback.)
-      if (isMissingPerkColumn(error)) {
+      if (isMissingColumn(error, PERK_COLUMNS)) {
         const { free_toppings: _t, free_topping_ids: _ids, ...rest } = row;
         void _t; void _ids;
         ({ error } = await db.from('bundles').upsert(rest));
